@@ -110,9 +110,6 @@
     -webkit-user-drag:none;user-select:none;}
   #adjustStage img.fg-layer:active{cursor:grabbing;}
   #adjustControls{display:none;width:100%;max-width:420px;}
-  #adjustControls .scale-row{display:flex;align-items:center;gap:12px;margin-top:16px;}
-  #adjustControls .scale-row span{font-size:20px;color:var(--muted);}
-  #adjustControls input[type=range]{flex:1;accent-color:var(--accent);}
   #adjustControls .hint{text-align:center;}
   #adjustControls .row{margin-top:10px;}
 
@@ -213,12 +210,7 @@
   </div>
 
   <div id="adjustControls">
-    <div class="scale-row">
-      <span>－</span>
-      <input type="range" id="scaleSlider" min="40" max="220" value="100" />
-      <span>＋</span>
-    </div>
-    <p class="hint">Drag the photo to reposition · pinch or use the slider to resize</p>
+    <p class="hint">Drag to reposition · pinch with two fingers to resize</p>
     <div class="row">
       <button class="btn btn-ghost" id="adjustReset">↺ Reset</button>
       <button class="btn btn-ghost" id="adjustCancel">Cancel</button>
@@ -278,7 +270,6 @@ const adjustBg = $('adjustBg');
 const adjustFg = $('adjustFg');
 const adjustControls = $('adjustControls');
 const lightboxNormalRow = $('lightboxNormalRow');
-const scaleSlider = $('scaleSlider');
 
 function showToast(msg){
   toast.textContent = msg;
@@ -432,7 +423,7 @@ async function runBatch(){
     progressBar.style.width = `${Math.round((i/total)*100)}%`;
     try{
       const cutoutBlob = await removeBackground(photo.file, {
-        model: 'isnet_quint8',
+        model: 'isnet',
         output: { format: 'image/png' },
         progress: (key, current, current_total) => {
           if (current_total){
@@ -441,7 +432,8 @@ async function runBatch(){
           }
         }
       });
-      const cutoutUrl = URL.createObjectURL(cutoutBlob);
+      progressText.textContent = `Processing ${i+1} of ${total}… (cleaning up edges)`;
+      const cutoutUrl = await cleanupCutout(cutoutBlob);
       const fgDims = await getImageDims(cutoutUrl);
       const transform = { scale: 1, dx: 0, dy: 0 };
       const composedUrl = await composite(cutoutUrl, backgrounds[activeBgIndex].dataUrl, transform);
@@ -468,6 +460,70 @@ function getImageDims(url){
     img.onerror = reject;
     img.src = url;
   });
+}
+
+// The model sometimes leaves small disconnected specks of "foreground" scattered
+// where the background used to be. Find connected regions of the alpha mask and
+// erase every region except the main subject, without touching its edge softness.
+async function cleanupCutout(blob){
+  const url = URL.createObjectURL(blob);
+  const img = await new Promise((resolve, reject)=>{
+    const im = new Image();
+    im.onload = () => resolve(im);
+    im.onerror = reject;
+    im.src = url;
+  });
+
+  const w = img.naturalWidth, h = img.naturalHeight;
+  const canvas = document.createElement('canvas');
+  canvas.width = w; canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(img, 0, 0);
+  const imageData = ctx.getImageData(0, 0, w, h);
+  const data = imageData.data;
+  const n = w * h;
+
+  const ALPHA_THRESH = 20;
+  const isFg = new Uint8Array(n);
+  for (let i = 0; i < n; i++) isFg[i] = data[i * 4 + 3] > ALPHA_THRESH ? 1 : 0;
+
+  const labels = new Int32Array(n).fill(-1);
+  const sizes = [];
+  const stack = new Int32Array(n);
+  let numLabels = 0;
+
+  for (let start = 0; start < n; start++){
+    if (!isFg[start] || labels[start] !== -1) continue;
+    let top = 0;
+    stack[top++] = start;
+    labels[start] = numLabels;
+    let count = 0;
+    while (top > 0){
+      const p = stack[--top];
+      count++;
+      const x = p % w, y = (p / w) | 0;
+      if (x > 0){ const q = p - 1; if (isFg[q] && labels[q] === -1){ labels[q] = numLabels; stack[top++] = q; } }
+      if (x < w - 1){ const q = p + 1; if (isFg[q] && labels[q] === -1){ labels[q] = numLabels; stack[top++] = q; } }
+      if (y > 0){ const q = p - w; if (isFg[q] && labels[q] === -1){ labels[q] = numLabels; stack[top++] = q; } }
+      if (y < h - 1){ const q = p + w; if (isFg[q] && labels[q] === -1){ labels[q] = numLabels; stack[top++] = q; } }
+    }
+    sizes.push(count);
+    numLabels++;
+  }
+
+  if (numLabels > 1){
+    let largest = 0;
+    for (let i = 1; i < sizes.length; i++) if (sizes[i] > sizes[largest]) largest = i;
+    const keepThreshold = Math.max(300, sizes[largest] * 0.04);
+    for (let i = 0; i < n; i++){
+      if (isFg[i] && sizes[labels[i]] < keepThreshold){
+        data[i * 4 + 3] = 0;
+      }
+    }
+    ctx.putImageData(imageData, 0, 0);
+  }
+
+  return new Promise(resolve => canvas.toBlob(b => resolve(URL.createObjectURL(b)), 'image/png'));
 }
 
 // Shared geometry: default fit is 92% of canvas height, bottom-anchored, centered.
@@ -673,7 +729,6 @@ function enterAdjust(r){
     adjustBg.src = bg.dataUrl;
   }
   adjustFg.src = r.cutoutUrl;
-  scaleSlider.value = Math.round(adjustCtx.transform.scale * 100);
 }
 
 function exitAdjust(){
@@ -726,7 +781,6 @@ adjustFg.addEventListener('pointermove', (e)=>{
     const pts = [...activePointers.values()];
     const newScale = Math.min(2.2, Math.max(0.4, pinchStart.scale * (dist(pts[0], pts[1]) / pinchStart.dist)));
     adjustCtx.transform.scale = newScale;
-    scaleSlider.value = Math.round(newScale * 100);
     updateAdjustPreview();
   }
 });
@@ -745,16 +799,9 @@ function endPointer(e){
 adjustFg.addEventListener('pointerup', endPointer);
 adjustFg.addEventListener('pointercancel', endPointer);
 
-scaleSlider.addEventListener('input', ()=>{
-  if (!adjustCtx) return;
-  adjustCtx.transform.scale = scaleSlider.value / 100;
-  updateAdjustPreview();
-});
-
 $('adjustReset').addEventListener('click', ()=>{
   if (!adjustCtx) return;
   adjustCtx.transform = { scale: 1, dx: 0, dy: 0 };
-  scaleSlider.value = 100;
   updateAdjustPreview();
 });
 
