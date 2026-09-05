@@ -101,17 +101,28 @@
   #lightbox .close{position:absolute;top:18px;right:18px;background:rgba(255,255,255,.12);border:none;
     color:#fff;width:36px;height:36px;border-radius:50%;font-size:18px;}
 
-  /* Adjust (resize/reposition) stage */
+  /* Adjust (resize/reposition/erase) stage */
   #adjustStage{display:none;position:relative;width:100%;max-width:420px;overflow:hidden;
     border-radius:10px;touch-action:none;background:#000;}
   #adjustStage img.bg-layer{position:absolute;inset:0;width:100%;height:100%;object-fit:fill;
     pointer-events:none;-webkit-user-drag:none;user-select:none;}
-  #adjustStage img.fg-layer{position:absolute;touch-action:none;cursor:grab;
+  #adjustStage .fg-layer{position:absolute;touch-action:none;cursor:grab;
     -webkit-user-drag:none;user-select:none;}
-  #adjustStage img.fg-layer:active{cursor:grabbing;}
+  #adjustStage .fg-layer:active{cursor:grabbing;}
   #adjustControls{display:none;width:100%;max-width:420px;}
   #adjustControls .hint{text-align:center;}
   #adjustControls .row{margin-top:10px;}
+  #adjustControls .tool-row{display:flex;gap:8px;margin-top:16px;}
+  #adjustControls .tool-btn{flex:1;padding:10px;border-radius:10px;border:1px solid var(--border);
+    background:var(--panel2);color:var(--text);font-size:14px;font-weight:600;}
+  #adjustControls .tool-btn.active{background:var(--accent);border-color:var(--accent);color:#fff;}
+  #eraseTools{display:none;}
+  #eraseTools .brush-row{display:flex;align-items:center;gap:10px;justify-content:center;margin-top:8px;}
+  #eraseTools .brush-btn{background:var(--panel2);border:1px solid var(--border);color:var(--text);
+    width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+    font-size:14px;padding:0;}
+  #eraseTools .brush-btn.active{border-color:var(--accent);color:var(--accent);}
+  #eraseTools .dot{background:currentColor;border-radius:50%;display:block;}
 
   input[type=file]{display:none;}
   .hint{font-size:12px;color:var(--muted);margin-top:8px;line-height:1.5;}
@@ -200,7 +211,7 @@
 
   <div id="adjustStage">
     <img class="bg-layer" id="adjustBg" />
-    <img class="fg-layer" id="adjustFg" />
+    <canvas class="fg-layer" id="adjustFg"></canvas>
   </div>
 
   <div class="row" id="lightboxNormalRow">
@@ -210,7 +221,23 @@
   </div>
 
   <div id="adjustControls">
-    <p class="hint">Drag to reposition · pinch with two fingers to resize</p>
+    <div class="tool-row">
+      <button class="tool-btn" id="toolMove" data-tool="move">🖐 Move</button>
+      <button class="tool-btn" id="toolErase" data-tool="erase">🧽 Erase</button>
+    </div>
+
+    <p class="hint" id="moveHint">Drag to reposition · pinch with two fingers to resize</p>
+
+    <div id="eraseTools">
+      <p class="hint">Drag over anything you want to remove — like a leftover person or shadow</p>
+      <div class="brush-row">
+        <button class="brush-btn" data-size="small"><span class="dot" style="width:6px;height:6px;"></span></button>
+        <button class="brush-btn active" data-size="medium"><span class="dot" style="width:12px;height:12px;"></span></button>
+        <button class="brush-btn" data-size="large"><span class="dot" style="width:18px;height:18px;"></span></button>
+        <button class="btn btn-ghost btn-sm" id="eraseUndo">↺ Undo</button>
+      </div>
+    </div>
+
     <div class="row">
       <button class="btn btn-ghost" id="adjustReset">↺ Reset</button>
       <button class="btn btn-ghost" id="adjustCancel">Cancel</button>
@@ -268,8 +295,11 @@ const lightboxImg = $('lightboxImg');
 const adjustStage = $('adjustStage');
 const adjustBg = $('adjustBg');
 const adjustFg = $('adjustFg');
+const adjustFgCtx = adjustFg.getContext('2d');
 const adjustControls = $('adjustControls');
 const lightboxNormalRow = $('lightboxNormalRow');
+const moveHint = $('moveHint');
+const eraseTools = $('eraseTools');
 
 function showToast(msg){
   toast.textContent = msg;
@@ -696,13 +726,31 @@ lightbox.addEventListener('click', (e)=>{
   if (e.target===lightbox){ adjustCtx = null; lightbox.classList.remove('open'); }
 });
 
-// ---------- adjust editor: drag to reposition, pinch/slider to resize ----------
+// ---------- adjust editor: Move (drag/pinch) and Erase (brush) tools ----------
+function loadCutoutOntoCanvas(url){
+  return new Promise((resolve, reject)=>{
+    const img = new Image();
+    img.onload = () => {
+      adjustFg.width = img.naturalWidth;
+      adjustFg.height = img.naturalHeight;
+      adjustFgCtx.clearRect(0, 0, adjustFg.width, adjustFg.height);
+      adjustFgCtx.drawImage(img, 0, 0);
+      resolve();
+    };
+    img.onerror = reject;
+    img.src = url;
+  });
+}
+
 function enterAdjust(r){
   const bg = backgrounds[r.bgIndexUsed];
   if (!bg) return;
   adjustCtx = {
     result: r,
     transform: { ...r.transform },
+    tool: 'move',
+    brushRadiusFrac: 0.06,
+    eraseHistory: [],
     fgNaturalW: r.fgW, fgNaturalH: r.fgH,
     bgNaturalW: 0, bgNaturalH: 0
   };
@@ -713,6 +761,7 @@ function enterAdjust(r){
   lightboxNormalRow.style.display = 'none';
   adjustStage.style.display = 'block';
   adjustControls.style.display = 'block';
+  setAdjustTool('move');
 
   const initFromBg = () => {
     adjustCtx.bgNaturalW = adjustBg.naturalWidth;
@@ -728,7 +777,9 @@ function enterAdjust(r){
     adjustBg.onload = initFromBg;
     adjustBg.src = bg.dataUrl;
   }
-  adjustFg.src = r.cutoutUrl;
+
+  // Always reload the working canvas fresh from the photo's currently-saved cutout.
+  loadCutoutOntoCanvas(r.cutoutUrl).then(updateAdjustPreview);
 }
 
 function exitAdjust(){
@@ -736,8 +787,31 @@ function exitAdjust(){
   adjustControls.style.display = 'none';
   lightboxImg.style.display = 'block';
   lightboxNormalRow.style.display = 'flex';
+  eraseLastPoint = null;
   adjustCtx = null;
 }
+
+function setAdjustTool(tool){
+  if (!adjustCtx) return;
+  adjustCtx.tool = tool;
+  eraseLastPoint = null;
+  $('toolMove').classList.toggle('active', tool === 'move');
+  $('toolErase').classList.toggle('active', tool === 'erase');
+  moveHint.style.display = tool === 'move' ? 'block' : 'none';
+  eraseTools.style.display = tool === 'erase' ? 'block' : 'none';
+  adjustFg.style.cursor = tool === 'erase' ? 'crosshair' : 'grab';
+}
+$('toolMove').addEventListener('click', ()=> setAdjustTool('move'));
+$('toolErase').addEventListener('click', ()=> setAdjustTool('erase'));
+
+document.querySelectorAll('.brush-btn[data-size]').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.brush-btn[data-size]').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    const map = { small: 0.03, medium: 0.06, large: 0.10 };
+    if (adjustCtx) adjustCtx.brushRadiusFrac = map[btn.dataset.size];
+  });
+});
 
 function updateAdjustPreview(){
   if (!adjustCtx || !adjustCtx.bgNaturalW) return;
@@ -749,6 +823,48 @@ function updateAdjustPreview(){
   adjustFg.style.height = (rect.h * displayScale) + 'px';
 }
 
+// ---- erase brush: paints directly on the working canvas (destination-out) ----
+let eraseLastPoint = null;
+
+function saveEraseSnapshot(){
+  const snap = adjustFgCtx.getImageData(0, 0, adjustFg.width, adjustFg.height);
+  adjustCtx.eraseHistory.push(snap);
+  if (adjustCtx.eraseHistory.length > 12) adjustCtx.eraseHistory.shift();
+}
+
+function paintErase(clientX, clientY){
+  const rect = adjustFg.getBoundingClientRect();
+  if (!rect.width || !rect.height) return;
+  const scaleX = adjustFg.width / rect.width;
+  const scaleY = adjustFg.height / rect.height;
+  const px = (clientX - rect.left) * scaleX;
+  const py = (clientY - rect.top) * scaleY;
+  const radius = adjustCtx.brushRadiusFrac * adjustFg.width;
+
+  adjustFgCtx.save();
+  adjustFgCtx.globalCompositeOperation = 'destination-out';
+  adjustFgCtx.lineCap = 'round';
+  adjustFgCtx.lineJoin = 'round';
+  adjustFgCtx.lineWidth = radius * 2;
+  adjustFgCtx.beginPath();
+  adjustFgCtx.moveTo(eraseLastPoint ? eraseLastPoint.x : px, eraseLastPoint ? eraseLastPoint.y : py);
+  adjustFgCtx.lineTo(px, py);
+  adjustFgCtx.stroke();
+  adjustFgCtx.beginPath();
+  adjustFgCtx.arc(px, py, radius, 0, Math.PI * 2);
+  adjustFgCtx.fill();
+  adjustFgCtx.restore();
+
+  eraseLastPoint = { x: px, y: py };
+}
+
+$('eraseUndo').addEventListener('click', ()=>{
+  if (!adjustCtx || !adjustCtx.eraseHistory.length) return;
+  const snap = adjustCtx.eraseHistory.pop();
+  adjustFgCtx.putImageData(snap, 0, 0);
+});
+
+// ---- move/pinch (only active in the Move tool) ----
 const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 const activePointers = new Map();
 let dragStart = null;
@@ -758,6 +874,13 @@ adjustFg.addEventListener('pointerdown', (e)=>{
   if (!adjustCtx) return;
   try { adjustFg.setPointerCapture(e.pointerId); } catch {}
   activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+  if (adjustCtx.tool === 'erase'){
+    saveEraseSnapshot();
+    paintErase(e.clientX, e.clientY);
+    return;
+  }
+
   if (activePointers.size === 1){
     dragStart = { x: e.clientX, y: e.clientY, dx: adjustCtx.transform.dx, dy: adjustCtx.transform.dy };
     pinchStart = null;
@@ -771,8 +894,13 @@ adjustFg.addEventListener('pointerdown', (e)=>{
 adjustFg.addEventListener('pointermove', (e)=>{
   if (!adjustCtx || !activePointers.has(e.pointerId)) return;
   activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-  const displayScale = adjustStage.clientWidth / adjustCtx.bgNaturalW;
 
+  if (adjustCtx.tool === 'erase'){
+    paintErase(e.clientX, e.clientY);
+    return;
+  }
+
+  const displayScale = adjustStage.clientWidth / adjustCtx.bgNaturalW;
   if (activePointers.size === 1 && dragStart){
     adjustCtx.transform.dx = dragStart.dx + (e.clientX - dragStart.x) / displayScale;
     adjustCtx.transform.dy = dragStart.dy + (e.clientY - dragStart.y) / displayScale;
@@ -787,6 +915,7 @@ adjustFg.addEventListener('pointermove', (e)=>{
 
 function endPointer(e){
   activePointers.delete(e.pointerId);
+  eraseLastPoint = null;
   if (!adjustCtx) return;
   if (activePointers.size < 2) pinchStart = null;
   if (activePointers.size === 1){
@@ -799,9 +928,11 @@ function endPointer(e){
 adjustFg.addEventListener('pointerup', endPointer);
 adjustFg.addEventListener('pointercancel', endPointer);
 
-$('adjustReset').addEventListener('click', ()=>{
+$('adjustReset').addEventListener('click', async ()=>{
   if (!adjustCtx) return;
   adjustCtx.transform = { scale: 1, dx: 0, dy: 0 };
+  adjustCtx.eraseHistory = [];
+  await loadCutoutOntoCanvas(adjustCtx.result.cutoutUrl);
   updateAdjustPreview();
 });
 
@@ -812,6 +943,8 @@ $('adjustDone').addEventListener('click', async ()=>{
   const r = adjustCtx.result;
   const bg = backgrounds[r.bgIndexUsed];
   r.transform = { ...adjustCtx.transform };
+  const newCutoutBlob = await new Promise(resolve => adjustFg.toBlob(resolve, 'image/png'));
+  r.cutoutUrl = URL.createObjectURL(newCutoutBlob);
   r.composedUrl = await composite(r.cutoutUrl, bg.dataUrl, r.transform);
   lightboxImg.src = r.composedUrl;
   exitAdjust();
