@@ -101,6 +101,21 @@
   #lightbox .close{position:absolute;top:18px;right:18px;background:rgba(255,255,255,.12);border:none;
     color:#fff;width:36px;height:36px;border-radius:50%;font-size:18px;}
 
+  /* Adjust (resize/reposition) stage */
+  #adjustStage{display:none;position:relative;width:100%;max-width:420px;overflow:hidden;
+    border-radius:10px;touch-action:none;background:#000;}
+  #adjustStage img.bg-layer{position:absolute;inset:0;width:100%;height:100%;object-fit:fill;
+    pointer-events:none;-webkit-user-drag:none;user-select:none;}
+  #adjustStage img.fg-layer{position:absolute;touch-action:none;cursor:grab;
+    -webkit-user-drag:none;user-select:none;}
+  #adjustStage img.fg-layer:active{cursor:grabbing;}
+  #adjustControls{display:none;width:100%;max-width:420px;}
+  #adjustControls .scale-row{display:flex;align-items:center;gap:12px;margin-top:16px;}
+  #adjustControls .scale-row span{font-size:20px;color:var(--muted);}
+  #adjustControls input[type=range]{flex:1;accent-color:var(--accent);}
+  #adjustControls .hint{text-align:center;}
+  #adjustControls .row{margin-top:10px;}
+
   input[type=file]{display:none;}
   .hint{font-size:12px;color:var(--muted);margin-top:8px;line-height:1.5;}
   .toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:var(--panel2);
@@ -185,9 +200,30 @@
 <div id="lightbox">
   <button class="close" id="lightboxClose">✕</button>
   <img id="lightboxImg" src="" />
-  <div class="row">
+
+  <div id="adjustStage">
+    <img class="bg-layer" id="adjustBg" />
+    <img class="fg-layer" id="adjustFg" />
+  </div>
+
+  <div class="row" id="lightboxNormalRow">
+    <button class="btn btn-ghost" id="lightboxAdjust">✥ Adjust</button>
     <button class="btn btn-ghost" id="lightboxSave">⬇ Save</button>
     <button class="btn btn-primary" id="lightboxShare">↗ Share</button>
+  </div>
+
+  <div id="adjustControls">
+    <div class="scale-row">
+      <span>－</span>
+      <input type="range" id="scaleSlider" min="40" max="220" value="100" />
+      <span>＋</span>
+    </div>
+    <p class="hint">Drag the photo to reposition · pinch or use the slider to resize</p>
+    <div class="row">
+      <button class="btn btn-ghost" id="adjustReset">↺ Reset</button>
+      <button class="btn btn-ghost" id="adjustCancel">Cancel</button>
+      <button class="btn btn-primary" id="adjustDone">✓ Done</button>
+    </div>
   </div>
 </div>
 
@@ -211,9 +247,11 @@ let activeBgIndex = parseInt(localStorage.getItem(LS_LAST) ?? '0', 10);
 
 // ---------- state ----------
 let pendingPhotos = [];   // {id, file, url}
-let results = [];         // {id, srcUrl, cutoutUrl, composedUrl, bgIndexUsed}
+let results = [];         // {id, srcUrl, cutoutUrl, composedUrl, bgIndexUsed, transform, fgW, fgH}
 let editingSlot = null;
 let idCounter = 0;
+let currentLightboxResult = null;
+let adjustCtx = null;     // live in-progress edit state while the adjust editor is open
 
 // ---------- elements ----------
 const $ = (id) => document.getElementById(id);
@@ -235,6 +273,12 @@ const saveAllRow = $('saveAllRow');
 const toast = $('toast');
 const lightbox = $('lightbox');
 const lightboxImg = $('lightboxImg');
+const adjustStage = $('adjustStage');
+const adjustBg = $('adjustBg');
+const adjustFg = $('adjustFg');
+const adjustControls = $('adjustControls');
+const lightboxNormalRow = $('lightboxNormalRow');
+const scaleSlider = $('scaleSlider');
 
 function showToast(msg){
   toast.textContent = msg;
@@ -398,8 +442,13 @@ async function runBatch(){
         }
       });
       const cutoutUrl = URL.createObjectURL(cutoutBlob);
-      const composedUrl = await composite(cutoutUrl, backgrounds[activeBgIndex].dataUrl);
-      results.unshift({ id: photo.id, srcUrl: photo.url, cutoutUrl, composedUrl, bgIndexUsed: activeBgIndex });
+      const fgDims = await getImageDims(cutoutUrl);
+      const transform = { scale: 1, dx: 0, dy: 0 };
+      const composedUrl = await composite(cutoutUrl, backgrounds[activeBgIndex].dataUrl, transform);
+      results.unshift({
+        id: photo.id, srcUrl: photo.url, cutoutUrl, composedUrl,
+        bgIndexUsed: activeBgIndex, transform, fgW: fgDims.w, fgH: fgDims.h
+      });
     } catch(err){
       console.error(err);
       showToast('Could not process one photo — skipped.');
@@ -412,7 +461,28 @@ async function runBatch(){
   updateRunEnabled();
 }
 
-function composite(cutoutUrl, bgDataUrl){
+function getImageDims(url){
+  return new Promise((resolve, reject)=>{
+    const img = new Image();
+    img.onload = () => resolve({ w: img.naturalWidth, h: img.naturalHeight });
+    img.onerror = reject;
+    img.src = url;
+  });
+}
+
+// Shared geometry: default fit is 92% of canvas height, bottom-anchored, centered.
+// transform.scale is a multiplier on that default size; dx/dy are pixel offsets (canvas space).
+function fgRect(canvasW, canvasH, fgW, fgH, transform){
+  const baseScale = (canvasH * 0.92) / fgH;
+  const scale = baseScale * transform.scale;
+  const w = fgW * scale;
+  const h = fgH * scale;
+  const x = (canvasW - w) / 2 + transform.dx;
+  const y = (canvasH * 0.98 - h) + transform.dy;
+  return { x, y, w, h };
+}
+
+function composite(cutoutUrl, bgDataUrl, transform = { scale: 1, dx: 0, dy: 0 }){
   return new Promise((resolve, reject)=>{
     const bgImg = new Image();
     bgImg.onload = ()=>{
@@ -424,13 +494,8 @@ function composite(cutoutUrl, bgDataUrl){
         const ctx = canvas.getContext('2d');
         ctx.drawImage(bgImg, 0, 0, canvas.width, canvas.height);
 
-        const targetH = canvas.height * 0.92;
-        const scale = targetH / fgImg.naturalHeight;
-        const w = fgImg.naturalWidth * scale;
-        const h = fgImg.naturalHeight * scale;
-        const x = (canvas.width - w) / 2;
-        const y = canvas.height * 0.98 - h; // bottom-anchored, small margin
-        ctx.drawImage(fgImg, x, Math.max(y,0), w, h);
+        const rect = fgRect(canvas.width, canvas.height, fgImg.naturalWidth, fgImg.naturalHeight, transform);
+        ctx.drawImage(fgImg, rect.x, rect.y, rect.w, rect.h);
 
         canvas.toBlob(blob=>{
           resolve(URL.createObjectURL(blob));
@@ -464,7 +529,7 @@ function renderResults(){
     card.querySelector('img').addEventListener('click', ()=> openLightbox(r));
     card.querySelector('[data-act="bg0"]').addEventListener('click', ()=> switchBg(r, 0));
     card.querySelector('[data-act="bg1"]').addEventListener('click', ()=> switchBg(r, 1));
-    card.querySelector('[data-act="save"]').addEventListener('click', ()=> saveImage(r.composedUrl));
+    card.querySelector('[data-act="save"]').addEventListener('click', (e)=> saveImage(r.composedUrl, e.currentTarget));
     card.querySelector('[data-act="share"]').addEventListener('click', ()=> shareImage(r.composedUrl));
     resultsGrid.appendChild(card);
   });
@@ -473,7 +538,7 @@ function renderResults(){
 async function switchBg(r, idx){
   if (!backgrounds[idx]){ showToast('That background isn\'t set yet'); return; }
   if (r.bgIndexUsed === idx) return;
-  r.composedUrl = await composite(r.cutoutUrl, backgrounds[idx].dataUrl);
+  r.composedUrl = await composite(r.cutoutUrl, backgrounds[idx].dataUrl, r.transform);
   r.bgIndexUsed = idx;
   renderResults();
 }
@@ -485,13 +550,28 @@ async function urlToFile(url, name){
   return new File([blob], name, { type: blob.type });
 }
 
-function saveImage(url){
+function triggerDownload(url, filename){
   const a = document.createElement('a');
   a.href = url;
-  a.download = `bgswap-${Date.now()}.jpg`;
+  a.download = filename;
   document.body.appendChild(a);
   a.click();
   a.remove();
+}
+
+function flashSaved(btn){
+  if (!btn) return;
+  const orig = btn.dataset.origLabel || btn.textContent;
+  btn.dataset.origLabel = orig;
+  btn.textContent = '✓ Saved';
+  btn.disabled = true;
+  setTimeout(()=>{ btn.textContent = orig; btn.disabled = false; }, 1500);
+}
+
+function saveImage(url, btn){
+  triggerDownload(url, `bgswap-${Date.now()}.jpg`);
+  showToast('Saved to your device ✓');
+  flashSaved(btn);
 }
 
 async function shareImage(url){
@@ -508,15 +588,25 @@ async function shareImage(url){
   }
 }
 
-$('saveAllBtn').addEventListener('click', async ()=>{
-  const { default: JSZip } = await import('https://cdn.jsdelivr.net/npm/jszip@3.10.1/+esm');
-  const zip = new JSZip();
-  for (let i=0; i<results.length; i++){
-    const blob = await (await fetch(results[i].composedUrl)).blob();
-    zip.file(`bgswap-${i+1}.jpg`, blob);
+$('saveAllBtn').addEventListener('click', async (e)=>{
+  const btn = e.currentTarget;
+  const orig = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Zipping…';
+  try{
+    const { default: JSZip } = await import('https://cdn.jsdelivr.net/npm/jszip@3.10.1/+esm');
+    const zip = new JSZip();
+    for (let i=0; i<results.length; i++){
+      const blob = await (await fetch(results[i].composedUrl)).blob();
+      zip.file(`bgswap-${i+1}.jpg`, blob);
+    }
+    const content = await zip.generateAsync({ type: 'blob' });
+    triggerDownload(URL.createObjectURL(content), `bgswap-batch-${Date.now()}.zip`);
+    showToast(`Saved ${results.length} photo${results.length===1?'':'s'} to your device ✓`);
+    btn.textContent = '✓ Saved';
+  } finally {
+    setTimeout(()=>{ btn.textContent = orig; btn.disabled = false; }, 1500);
   }
-  const content = await zip.generateAsync({ type: 'blob' });
-  saveImage(URL.createObjectURL(content));
 });
 
 $('newBatchBtn').addEventListener('click', ()=>{
@@ -526,13 +616,160 @@ $('newBatchBtn').addEventListener('click', ()=>{
 
 // ---------- lightbox ----------
 function openLightbox(r){
+  currentLightboxResult = r;
   lightboxImg.src = r.composedUrl;
   lightbox.classList.add('open');
-  $('lightboxSave').onclick = ()=> saveImage(r.composedUrl);
+  showNormalView();
+  $('lightboxSave').onclick = (e)=> saveImage(r.composedUrl, e.currentTarget);
   $('lightboxShare').onclick = ()=> shareImage(r.composedUrl);
+  $('lightboxAdjust').onclick = ()=> enterAdjust(r);
 }
-$('lightboxClose').addEventListener('click', ()=> lightbox.classList.remove('open'));
-lightbox.addEventListener('click', (e)=>{ if (e.target===lightbox) lightbox.classList.remove('open'); });
+
+function showNormalView(){
+  lightboxImg.style.display = 'block';
+  lightboxNormalRow.style.display = 'flex';
+  adjustStage.style.display = 'none';
+  adjustControls.style.display = 'none';
+}
+
+$('lightboxClose').addEventListener('click', ()=>{
+  adjustCtx = null;
+  lightbox.classList.remove('open');
+});
+lightbox.addEventListener('click', (e)=>{
+  if (e.target===lightbox){ adjustCtx = null; lightbox.classList.remove('open'); }
+});
+
+// ---------- adjust editor: drag to reposition, pinch/slider to resize ----------
+function enterAdjust(r){
+  const bg = backgrounds[r.bgIndexUsed];
+  if (!bg) return;
+  adjustCtx = {
+    result: r,
+    transform: { ...r.transform },
+    fgNaturalW: r.fgW, fgNaturalH: r.fgH,
+    bgNaturalW: 0, bgNaturalH: 0
+  };
+
+  // Make the stage visible/laid out BEFORE computing the preview, so clientWidth is
+  // correct whether the background image loads fresh or is already cached (see below).
+  lightboxImg.style.display = 'none';
+  lightboxNormalRow.style.display = 'none';
+  adjustStage.style.display = 'block';
+  adjustControls.style.display = 'block';
+
+  const initFromBg = () => {
+    adjustCtx.bgNaturalW = adjustBg.naturalWidth;
+    adjustCtx.bgNaturalH = adjustBg.naturalHeight;
+    adjustStage.style.aspectRatio = `${adjustBg.naturalWidth} / ${adjustBg.naturalHeight}`;
+    updateAdjustPreview();
+  };
+  // The `load` event won't refire if this exact src is already loaded (e.g. re-opening
+  // the editor on the same photo), so check the already-loaded case explicitly.
+  if (adjustBg.src === bg.dataUrl && adjustBg.complete && adjustBg.naturalWidth){
+    initFromBg();
+  } else {
+    adjustBg.onload = initFromBg;
+    adjustBg.src = bg.dataUrl;
+  }
+  adjustFg.src = r.cutoutUrl;
+  scaleSlider.value = Math.round(adjustCtx.transform.scale * 100);
+}
+
+function exitAdjust(){
+  adjustStage.style.display = 'none';
+  adjustControls.style.display = 'none';
+  lightboxImg.style.display = 'block';
+  lightboxNormalRow.style.display = 'flex';
+  adjustCtx = null;
+}
+
+function updateAdjustPreview(){
+  if (!adjustCtx || !adjustCtx.bgNaturalW) return;
+  const displayScale = adjustStage.clientWidth / adjustCtx.bgNaturalW;
+  const rect = fgRect(adjustCtx.bgNaturalW, adjustCtx.bgNaturalH, adjustCtx.fgNaturalW, adjustCtx.fgNaturalH, adjustCtx.transform);
+  adjustFg.style.left = (rect.x * displayScale) + 'px';
+  adjustFg.style.top = (rect.y * displayScale) + 'px';
+  adjustFg.style.width = (rect.w * displayScale) + 'px';
+  adjustFg.style.height = (rect.h * displayScale) + 'px';
+}
+
+const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+const activePointers = new Map();
+let dragStart = null;
+let pinchStart = null;
+
+adjustFg.addEventListener('pointerdown', (e)=>{
+  if (!adjustCtx) return;
+  try { adjustFg.setPointerCapture(e.pointerId); } catch {}
+  activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (activePointers.size === 1){
+    dragStart = { x: e.clientX, y: e.clientY, dx: adjustCtx.transform.dx, dy: adjustCtx.transform.dy };
+    pinchStart = null;
+  } else if (activePointers.size === 2){
+    dragStart = null;
+    const pts = [...activePointers.values()];
+    pinchStart = { dist: dist(pts[0], pts[1]), scale: adjustCtx.transform.scale };
+  }
+});
+
+adjustFg.addEventListener('pointermove', (e)=>{
+  if (!adjustCtx || !activePointers.has(e.pointerId)) return;
+  activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  const displayScale = adjustStage.clientWidth / adjustCtx.bgNaturalW;
+
+  if (activePointers.size === 1 && dragStart){
+    adjustCtx.transform.dx = dragStart.dx + (e.clientX - dragStart.x) / displayScale;
+    adjustCtx.transform.dy = dragStart.dy + (e.clientY - dragStart.y) / displayScale;
+    updateAdjustPreview();
+  } else if (activePointers.size === 2 && pinchStart){
+    const pts = [...activePointers.values()];
+    const newScale = Math.min(2.2, Math.max(0.4, pinchStart.scale * (dist(pts[0], pts[1]) / pinchStart.dist)));
+    adjustCtx.transform.scale = newScale;
+    scaleSlider.value = Math.round(newScale * 100);
+    updateAdjustPreview();
+  }
+});
+
+function endPointer(e){
+  activePointers.delete(e.pointerId);
+  if (!adjustCtx) return;
+  if (activePointers.size < 2) pinchStart = null;
+  if (activePointers.size === 1){
+    const [p] = activePointers.values();
+    dragStart = { x: p.x, y: p.y, dx: adjustCtx.transform.dx, dy: adjustCtx.transform.dy };
+  } else if (activePointers.size === 0){
+    dragStart = null;
+  }
+}
+adjustFg.addEventListener('pointerup', endPointer);
+adjustFg.addEventListener('pointercancel', endPointer);
+
+scaleSlider.addEventListener('input', ()=>{
+  if (!adjustCtx) return;
+  adjustCtx.transform.scale = scaleSlider.value / 100;
+  updateAdjustPreview();
+});
+
+$('adjustReset').addEventListener('click', ()=>{
+  if (!adjustCtx) return;
+  adjustCtx.transform = { scale: 1, dx: 0, dy: 0 };
+  scaleSlider.value = 100;
+  updateAdjustPreview();
+});
+
+$('adjustCancel').addEventListener('click', ()=> exitAdjust());
+
+$('adjustDone').addEventListener('click', async ()=>{
+  if (!adjustCtx) return;
+  const r = adjustCtx.result;
+  const bg = backgrounds[r.bgIndexUsed];
+  r.transform = { ...adjustCtx.transform };
+  r.composedUrl = await composite(r.cutoutUrl, bg.dataUrl, r.transform);
+  lightboxImg.src = r.composedUrl;
+  exitAdjust();
+  renderResults();
+});
 
 // ---------- init ----------
 renderBgPanel();
