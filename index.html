@@ -112,9 +112,9 @@
   #adjustControls{display:none;width:100%;max-width:420px;}
   #adjustControls .hint{text-align:center;}
   #adjustControls .row{margin-top:10px;}
-  #adjustControls .tool-row{display:flex;gap:8px;margin-top:16px;}
-  #adjustControls .tool-btn{flex:1;padding:10px;border-radius:10px;border:1px solid var(--border);
-    background:var(--panel2);color:var(--text);font-size:14px;font-weight:600;}
+  #adjustControls .tool-row{display:flex;gap:6px;margin-top:16px;}
+  #adjustControls .tool-btn{flex:1;padding:9px 4px;border-radius:10px;border:1px solid var(--border);
+    background:var(--panel2);color:var(--text);font-size:12.5px;font-weight:600;white-space:nowrap;}
   #adjustControls .tool-btn.active{background:var(--accent);border-color:var(--accent);color:#fff;}
   #eraseTools{display:none;}
   #eraseTools .brush-row{display:flex;align-items:center;gap:10px;justify-content:center;margin-top:8px;}
@@ -123,6 +123,12 @@
     font-size:14px;padding:0;}
   #eraseTools .brush-btn.active{border-color:var(--accent);color:var(--accent);}
   #eraseTools .dot{background:currentColor;border-radius:50%;display:block;}
+  #enhanceTools{display:none;}
+  #enhanceTools .enhance-row{margin-top:12px;}
+  #enhanceTools .enhance-label{display:flex;justify-content:space-between;font-size:13px;
+    color:var(--text);margin-bottom:4px;}
+  #enhanceTools .enhance-label .val{color:var(--muted);font-variant-numeric:tabular-nums;}
+  #enhanceTools input[type=range]{width:100%;accent-color:var(--accent);}
 
   input[type=file]{display:none;}
   .hint{font-size:12px;color:var(--muted);margin-top:8px;line-height:1.5;}
@@ -224,6 +230,7 @@
     <div class="tool-row">
       <button class="tool-btn" id="toolMove" data-tool="move">🖐 Move</button>
       <button class="tool-btn" id="toolErase" data-tool="erase">🧽 Erase</button>
+      <button class="tool-btn" id="toolEnhance" data-tool="enhance">🎨 Enhance</button>
     </div>
 
     <p class="hint" id="moveHint">Drag to reposition · pinch with two fingers to resize</p>
@@ -235,6 +242,29 @@
         <button class="brush-btn active" data-size="medium"><span class="dot" style="width:12px;height:12px;"></span></button>
         <button class="brush-btn" data-size="large"><span class="dot" style="width:18px;height:18px;"></span></button>
         <button class="btn btn-ghost btn-sm" id="eraseUndo">↺ Undo</button>
+      </div>
+    </div>
+
+    <div id="enhanceTools">
+      <div class="enhance-row">
+        <div class="enhance-label"><span>Brightness</span><span class="val" id="valBrightness">0</span></div>
+        <input type="range" id="sliderBrightness" min="-100" max="100" value="0">
+      </div>
+      <div class="enhance-row">
+        <div class="enhance-label"><span>Contrast</span><span class="val" id="valContrast">0</span></div>
+        <input type="range" id="sliderContrast" min="-100" max="100" value="0">
+      </div>
+      <div class="enhance-row">
+        <div class="enhance-label"><span>Clarity</span><span class="val" id="valClarity">0</span></div>
+        <input type="range" id="sliderClarity" min="-100" max="100" value="0">
+      </div>
+      <div class="enhance-row">
+        <div class="enhance-label"><span>Sharpness</span><span class="val" id="valSharpness">0</span></div>
+        <input type="range" id="sliderSharpness" min="0" max="100" value="0">
+      </div>
+      <div class="enhance-row">
+        <div class="enhance-label"><span>Temperature</span><span class="val" id="valTemperature">0</span></div>
+        <input type="range" id="sliderTemperature" min="-100" max="100" value="0">
       </div>
     </div>
 
@@ -300,6 +330,8 @@ const adjustControls = $('adjustControls');
 const lightboxNormalRow = $('lightboxNormalRow');
 const moveHint = $('moveHint');
 const eraseTools = $('eraseTools');
+const enhanceTools = $('enhanceTools');
+const ENHANCE_KEYS = ['Brightness', 'Contrast', 'Clarity', 'Sharpness', 'Temperature'];
 
 function showToast(msg){
   toast.textContent = msg;
@@ -410,15 +442,48 @@ function fileToDataUrl(file, maxDim){
 // ---------- photo picking ----------
 dropZone.addEventListener('click', ()=> photoFileInput.click());
 
-photoFileInput.addEventListener('change', (e)=>{
+photoFileInput.addEventListener('change', async (e)=>{
   const files = Array.from(e.target.files || []);
-  files.forEach(file=>{
-    pendingPhotos.push({ id: ++idCounter, file, url: URL.createObjectURL(file) });
-  });
   photoFileInput.value = '';
-  renderThumbs();
-  updateRunEnabled();
+  for (const rawFile of files){
+    const file = await resizePhotoFile(rawFile, 1600);
+    pendingPhotos.push({ id: ++idCounter, file, url: URL.createObjectURL(file) });
+    renderThumbs();
+    updateRunEnabled();
+  }
 });
+
+// Phone photos can be 12MP+; that's far more detail than needed once composited onto a
+// ~1600px background, and it makes the Enhance sliders (which blur every pixel for
+// Clarity/Sharpness) noticeably laggy. Cap resolution up front -- faster AI removal,
+// faster Enhance, smaller saved/shared files, no visible quality loss on a phone screen.
+function resizePhotoFile(file, maxDim){
+  return new Promise((resolve, reject)=>{
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        if (img.naturalWidth <= maxDim && img.naturalHeight <= maxDim){
+          resolve(file);
+          return;
+        }
+        const scale = maxDim / Math.max(img.naturalWidth, img.naturalHeight);
+        const width = Math.round(img.naturalWidth * scale);
+        const height = Math.round(img.naturalHeight * scale);
+        const canvas = document.createElement('canvas');
+        canvas.width = width; canvas.height = height;
+        canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+        canvas.toBlob(blob => {
+          resolve(new File([blob], file.name, { type: 'image/jpeg' }));
+        }, 'image/jpeg', 0.92);
+      };
+      img.onerror = reject;
+      img.src = reader.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
 
 function renderThumbs(){
   thumbStrip.innerHTML = '';
@@ -751,6 +816,8 @@ function enterAdjust(r){
     tool: 'move',
     brushRadiusFrac: 0.06,
     eraseHistory: [],
+    enhanceBase: null,
+    enhanceValues: { brightness: 0, contrast: 0, clarity: 0, sharpness: 0, temperature: 0 },
     fgNaturalW: r.fgW, fgNaturalH: r.fgH,
     bgNaturalW: 0, bgNaturalH: 0
   };
@@ -797,12 +864,23 @@ function setAdjustTool(tool){
   eraseLastPoint = null;
   $('toolMove').classList.toggle('active', tool === 'move');
   $('toolErase').classList.toggle('active', tool === 'erase');
+  $('toolEnhance').classList.toggle('active', tool === 'enhance');
   moveHint.style.display = tool === 'move' ? 'block' : 'none';
   eraseTools.style.display = tool === 'erase' ? 'block' : 'none';
+  enhanceTools.style.display = tool === 'enhance' ? 'block' : 'none';
   adjustFg.style.cursor = tool === 'erase' ? 'crosshair' : 'grab';
+
+  if (tool === 'enhance'){
+    // Sliders always adjust from "how the photo looks right now" -- capture that as the
+    // baseline each time you enter this tab, so moving/erasing first then enhancing works
+    // as expected, and switching tools locks in whatever's currently previewed.
+    adjustCtx.enhanceBase = adjustFgCtx.getImageData(0, 0, adjustFg.width, adjustFg.height);
+    resetEnhanceSliders();
+  }
 }
 $('toolMove').addEventListener('click', ()=> setAdjustTool('move'));
 $('toolErase').addEventListener('click', ()=> setAdjustTool('erase'));
+$('toolEnhance').addEventListener('click', ()=> setAdjustTool('enhance'));
 
 document.querySelectorAll('.brush-btn[data-size]').forEach(btn=>{
   btn.addEventListener('click', ()=>{
@@ -810,6 +888,99 @@ document.querySelectorAll('.brush-btn[data-size]').forEach(btn=>{
     btn.classList.add('active');
     const map = { small: 0.03, medium: 0.06, large: 0.10 };
     if (adjustCtx) adjustCtx.brushRadiusFrac = map[btn.dataset.size];
+  });
+});
+
+// ---- enhance: brightness/contrast/clarity/sharpness/temperature, applied to the
+// cutout's RGB only (alpha, i.e. the erased/transparent parts, is left untouched) ----
+function resetEnhanceSliders(){
+  if (!adjustCtx) return;
+  adjustCtx.enhanceValues = { brightness: 0, contrast: 0, clarity: 0, sharpness: 0, temperature: 0 };
+  ENHANCE_KEYS.forEach(name=>{
+    $('slider' + name).value = 0;
+    $('val' + name).textContent = '0';
+  });
+}
+
+function blurImageData(imageData, radiusPx){
+  const w = imageData.width, h = imageData.height;
+  const srcCanvas = document.createElement('canvas');
+  srcCanvas.width = w; srcCanvas.height = h;
+  srcCanvas.getContext('2d').putImageData(imageData, 0, 0);
+
+  const outCanvas = document.createElement('canvas');
+  outCanvas.width = w; outCanvas.height = h;
+  const outCtx = outCanvas.getContext('2d');
+  outCtx.filter = `blur(${radiusPx}px)`;
+  outCtx.drawImage(srcCanvas, 0, 0);
+  return outCtx.getImageData(0, 0, w, h);
+}
+
+function combineUnsharp(baseData, blurredData, amount){
+  const out = new ImageData(new Uint8ClampedArray(baseData.data), baseData.width, baseData.height);
+  const a = baseData.data, b = blurredData.data, o = out.data;
+  for (let i = 0; i < a.length; i += 4){
+    o[i]   = a[i]   + amount * (a[i]   - b[i]);
+    o[i+1] = a[i+1] + amount * (a[i+1] - b[i+1]);
+    o[i+2] = a[i+2] + amount * (a[i+2] - b[i+2]);
+    o[i+3] = a[i+3];
+  }
+  return out;
+}
+
+function computeEnhanced(base, values){
+  const { brightness, contrast, clarity, sharpness, temperature } = values;
+  const c = contrast * 2.55; // -100..100 -> classic -255..255 contrast formula
+  const contrastFactor = (259 * (c + 255)) / (255 * (259 - c));
+  const brightAdd = brightness * 1.5;
+  const tempShift = temperature * 1.0;
+
+  const toned = new ImageData(new Uint8ClampedArray(base.data), base.width, base.height);
+  const src = base.data, dst = toned.data;
+  for (let i = 0; i < src.length; i += 4){
+    let r = src[i] + brightAdd;
+    let g = src[i+1] + brightAdd;
+    let b = src[i+2] + brightAdd;
+    r = contrastFactor * (r - 128) + 128;
+    g = contrastFactor * (g - 128) + 128;
+    b = contrastFactor * (b - 128) + 128;
+    dst[i]   = r + tempShift;
+    dst[i+1] = g;
+    dst[i+2] = b - tempShift;
+    dst[i+3] = src[i+3];
+  }
+
+  let result = toned;
+  if (sharpness > 0){
+    const blurredFine = blurImageData(toned, 1.5);
+    result = combineUnsharp(result, blurredFine, (sharpness / 100) * 1.2);
+  }
+  if (clarity !== 0){
+    const blurredWide = blurImageData(toned, 18);
+    result = combineUnsharp(result, blurredWide, (clarity / 100) * 0.8);
+  }
+  return result;
+}
+
+let enhanceRaf = null;
+function scheduleEnhancePreview(){
+  if (enhanceRaf) return;
+  enhanceRaf = requestAnimationFrame(()=>{
+    enhanceRaf = null;
+    if (!adjustCtx || !adjustCtx.enhanceBase) return;
+    const result = computeEnhanced(adjustCtx.enhanceBase, adjustCtx.enhanceValues);
+    adjustFgCtx.putImageData(result, 0, 0);
+  });
+}
+
+ENHANCE_KEYS.forEach(name=>{
+  const key = name.toLowerCase();
+  $('slider' + name).addEventListener('input', (e)=>{
+    if (!adjustCtx) return;
+    const v = parseInt(e.target.value, 10);
+    adjustCtx.enhanceValues[key] = v;
+    $('val' + name).textContent = (v > 0 ? '+' : '') + v;
+    scheduleEnhancePreview();
   });
 });
 
@@ -871,7 +1042,7 @@ let dragStart = null;
 let pinchStart = null;
 
 adjustFg.addEventListener('pointerdown', (e)=>{
-  if (!adjustCtx) return;
+  if (!adjustCtx || adjustCtx.tool === 'enhance') return;
   try { adjustFg.setPointerCapture(e.pointerId); } catch {}
   activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
 
@@ -934,6 +1105,10 @@ $('adjustReset').addEventListener('click', async ()=>{
   adjustCtx.eraseHistory = [];
   await loadCutoutOntoCanvas(adjustCtx.result.cutoutUrl);
   updateAdjustPreview();
+  if (adjustCtx.tool === 'enhance'){
+    adjustCtx.enhanceBase = adjustFgCtx.getImageData(0, 0, adjustFg.width, adjustFg.height);
+  }
+  resetEnhanceSliders();
 });
 
 $('adjustCancel').addEventListener('click', ()=> exitAdjust());
