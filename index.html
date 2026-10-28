@@ -19,7 +19,8 @@
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
   html,body{margin:0;padding:0;background:var(--bg);color:var(--text);
-    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;}
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    overscroll-behavior-y:contain;}
   body{padding-bottom:96px;}
   header{position:sticky;top:0;z-index:20;background:rgba(15,17,21,.92);backdrop-filter:blur(8px);
     display:flex;align-items:center;justify-content:space-between;padding:14px 16px;
@@ -47,6 +48,7 @@
   .bg-slot.selected{border-color:var(--accent);}
   .bg-slot .check{position:absolute;top:6px;right:6px;width:22px;height:22px;border-radius:50%;
     background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;}
+  .about{font-size:11px;color:var(--muted);line-height:1.6;margin:12px 0 0;word-break:break-word;}
 
   /* Photo picker */
   .drop{border:2px dashed var(--border);border-radius:var(--radius);padding:28px 16px;text-align:center;color:var(--muted);}
@@ -54,8 +56,8 @@
   .thumb-strip{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;}
   .thumb{position:relative;width:72px;height:72px;border-radius:10px;overflow:hidden;border:1px solid var(--border);}
   .thumb img{width:100%;height:100%;object-fit:cover;}
-  .thumb .x{position:absolute;top:2px;right:2px;width:18px;height:18px;border-radius:50%;background:rgba(0,0,0,.65);
-    color:#fff;font-size:11px;display:flex;align-items:center;justify-content:center;}
+  .thumb .x{position:absolute;top:2px;right:2px;width:20px;height:20px;border-radius:50%;background:rgba(0,0,0,.65);
+    color:#fff;font-size:11px;display:flex;align-items:center;justify-content:center;border:none;padding:0;}
 
   /* Buttons */
   .btn{display:flex;align-items:center;justify-content:center;gap:8px;border:none;border-radius:14px;
@@ -63,6 +65,7 @@
   .btn-primary{background:var(--accent);color:#fff;}
   .btn-primary:disabled{background:var(--accent-dim);opacity:.5;cursor:not-allowed;}
   .btn-ghost{background:var(--panel2);color:var(--text);border:1px solid var(--border);}
+  .btn-ghost:disabled{opacity:.6;cursor:not-allowed;}
   .btn-sm{padding:9px 12px;font-size:13px;border-radius:10px;width:auto;}
   .row{display:flex;gap:10px;}
   .row .btn{flex:1;}
@@ -77,13 +80,17 @@
   /* Results */
   .results-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
   .result-card{background:var(--panel);border:1px solid var(--border);border-radius:14px;overflow:hidden;}
-  .result-card .img-wrap{aspect-ratio:3/4;background:var(--panel2);}
+  .result-card .img-wrap{position:relative;aspect-ratio:3/4;background:var(--panel2);}
   .result-card .img-wrap img{width:100%;height:100%;object-fit:cover;cursor:zoom-in;}
+  .badge{position:absolute;top:8px;left:8px;background:rgba(62,207,142,.95);color:#04210f;font-size:11px;
+    font-weight:700;padding:3px 9px;border-radius:999px;pointer-events:none;}
   .result-actions{display:flex;border-top:1px solid var(--border);}
-  .result-actions button{flex:1;background:none;border:none;color:var(--text);padding:10px 4px;font-size:12px;
-    display:flex;flex-direction:column;align-items:center;gap:2px;}
+  .result-actions button{flex:1;background:none;border:none;color:var(--text);padding:10px 2px;font-size:12px;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;}
+  .result-actions button[data-act^="bg"]{white-space:nowrap;}
   .result-actions button:not(:last-child){border-right:1px solid var(--border);}
   .result-actions button.swap-active{color:var(--accent);}
+  .result-actions button.done{color:var(--good);}
 
   .empty{color:var(--muted);font-size:14px;text-align:center;padding:20px 0;}
 
@@ -91,6 +98,7 @@
   #actionBar{position:fixed;left:0;right:0;bottom:0;z-index:30;background:rgba(15,17,21,.95);
     backdrop-filter:blur(8px);border-top:1px solid var(--border);padding:10px 16px calc(10px + env(safe-area-inset-bottom));}
   #actionBar .row{max-width:640px;margin:0 auto;}
+  #progressWrap{max-width:640px;margin-left:auto;margin-right:auto;margin-bottom:10px;}
 
   /* Lightbox */
   #lightbox{display:none;position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.92);
@@ -100,6 +108,7 @@
   #lightbox .row{margin-top:16px;width:100%;max-width:420px;}
   #lightbox .close{position:absolute;top:18px;right:18px;background:rgba(255,255,255,.12);border:none;
     color:#fff;width:36px;height:36px;border-radius:50%;font-size:18px;}
+  #lightbox .btn.done{color:var(--good);}
 
   /* Adjust (resize/reposition/erase) stage */
   #adjustStage{display:none;position:relative;width:100%;max-width:420px;overflow:hidden;
@@ -134,7 +143,7 @@
   .hint{font-size:12px;color:var(--muted);margin-top:8px;line-height:1.5;}
   .toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:var(--panel2);
     border:1px solid var(--border);padding:10px 16px;border-radius:12px;font-size:13px;z-index:60;
-    opacity:0;transition:opacity .25s;pointer-events:none;}
+    opacity:0;transition:opacity .25s;pointer-events:none;max-width:90vw;text-align:center;}
   .toast.show{opacity:1;}
 </style>
 </head>
@@ -161,6 +170,7 @@
         </div>
       </div>
       <p class="hint">These stay saved on this device. Set them once — every photo you process gets composited onto whichever one you pick below.</p>
+      <p class="about" id="aboutLine"></p>
     </div>
     <input type="file" id="bgFileInput" accept="image/*" />
   </section>
@@ -192,9 +202,14 @@
     <div class="card" id="resultsCard">
       <div class="empty" id="resultsEmpty">Processed photos will show up here.</div>
       <div class="results-grid" id="resultsGrid"></div>
-      <div class="row" id="saveAllRow" style="display:none;margin-top:12px;">
-        <button class="btn btn-ghost" id="saveAllBtn">⬇ Save all (.zip)</button>
-        <button class="btn btn-ghost" id="newBatchBtn">↺ New batch</button>
+      <div id="saveAllRow" style="display:none;margin-top:12px;">
+        <div class="row">
+          <button class="btn btn-ghost" id="saveAllBtn">⬇ Save all</button>
+          <button class="btn btn-ghost" id="shareAllBtn">↗ Share all</button>
+        </div>
+        <div class="row" style="margin-top:10px;">
+          <button class="btn btn-ghost" id="newBatchBtn">↺ New batch</button>
+        </div>
       </div>
     </div>
   </section>
@@ -204,7 +219,7 @@
 <div id="actionBar">
   <div id="progressWrap">
     <div class="bar"><div id="progressBar"></div></div>
-    <div id="progressText">Loading model…</div>
+    <div id="progressText">Loading AI engine…</div>
   </div>
   <div class="row">
     <button class="btn btn-primary" id="runBtn" disabled>Remove background & apply</button>
@@ -279,38 +294,94 @@
 <div class="toast" id="toast"></div>
 
 <script type="module">
-import { removeBackground } from 'https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.7.0/+esm';
+// ===================================================================================
+//  Constants
+// ===================================================================================
+const APP_VERSION = '2026.10.28';
+const ENGINE_LIB_URL = 'https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.7.0/+esm';
+const ENGINE_RESOURCES_URL = 'https://staticimgly.com/@imgly/background-removal-data/1.7.0/dist/resources.json';
+const ENGINE_MODEL = 'isnet';                  // full-precision model: best cut-out quality
+const ENGINE_CACHE = 'bgswap-engine-imgly-1.7.0'; // must match sw.js
+const ENGINE_IDLE_MS = 120000;                 // free the AI's memory after 2 idle minutes
+const MAX_PHOTO_DIM = 1600;                    // input photos are scaled down to this (long side)
+const MAX_THREADS = 4;                         // measured sweet spot: more threads is not faster
+const UNDO_STEPS = 5;                          // erase undo history (each step is a full-size snapshot)
+const SESSION_MAX_AGE_MS = 24 * 3600 * 1000;   // restore results from the last 24 hours
+const ENHANCE_KEYS = ['Brightness', 'Contrast', 'Clarity', 'Sharpness', 'Temperature'];
 
-// ---------- storage ----------
+// ===================================================================================
+//  Small helpers
+// ===================================================================================
+const $ = (id) => document.getElementById(id);
+let toastTimer = null;
+function showToast(msg, ms = 1800){
+  const t = $('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), ms);
+}
+
+let idCounter = 0;
+const newId = () => Date.now().toString(36) + (++idCounter).toString(36);
+
+// Decodes an image (from a blob:, data: or http URL) into an ImageBitmap. Unlike img.decode(), this doesn't
+// wait for the page to be drawn on screen, so a batch keeps going if you switch to another app mid-run.
+// Callers should .close() the bitmap when they're done with it.
+async function loadImage(url){
+  const blob = await (await fetch(url)).blob();
+  return createImageBitmap(blob);
+}
+// canvas.toBlob() waits for a browser "idle" moment, which can add ~1 s per call (and more while the page
+// isn't in the foreground, e.g. when you've switched to Messenger mid-batch). toDataURL() encodes
+// immediately and is just as fast, so encode with it and convert the result to a Blob.
+async function canvasToBlob(canvas, type, quality){
+  const res = await fetch(canvas.toDataURL(type, quality));
+  return res.blob();
+}
+const revoke = (url) => { if (url && url.startsWith('blob:')) URL.revokeObjectURL(url); };
+
+function baseName(name){
+  return (name || 'photo').replace(/\.[^.]+$/, '').replace(/[^\w\- ]+/g, '_').trim().slice(0, 40) || 'photo';
+}
+
+// ===================================================================================
+//  State
+// ===================================================================================
 const LS_KEY = 'bgswap_backgrounds_v1';
 const LS_LAST = 'bgswap_last_bg_v1';
 
 function loadBackgrounds(){
-  try { return JSON.parse(localStorage.getItem(LS_KEY)) || [null, null]; }
-  catch { return [null, null]; }
+  try {
+    const saved = JSON.parse(localStorage.getItem(LS_KEY));
+    return Array.isArray(saved) && saved.length === 2 ? saved : [null, null];
+  } catch { return [null, null]; }
 }
-function saveBackgrounds(bgs){ localStorage.setItem(LS_KEY, JSON.stringify(bgs)); }
+function saveBackgrounds(bgs){
+  try { localStorage.setItem(LS_KEY, JSON.stringify(bgs)); return true; }
+  catch { showToast('Could not save the background (phone storage is full)', 3500); return false; }
+}
 
-let backgrounds = loadBackgrounds(); // [{name,dataUrl}|null, ...]
-let activeBgIndex = parseInt(localStorage.getItem(LS_LAST) ?? '0', 10);
+let backgrounds = loadBackgrounds();   // [{name, dataUrl} | null, ...]
+let activeBgIndex = parseInt(localStorage.getItem(LS_LAST) ?? '0', 10) === 1 ? 1 : 0;
 
-// ---------- state ----------
-let pendingPhotos = [];   // {id, file, url}
-let results = [];         // {id, srcUrl, cutoutUrl, composedUrl, bgIndexUsed, transform, fgW, fgH}
+let pendingPhotos = [];   // {id, file, name, thumbUrl}
+let results = [];         // {id, name, cutoutBlob, cutoutUrl, composedUrl, thumbUrl, bgIndexUsed, transform, fgW, fgH, saved, shared, createdAt}
+let processing = false;
+let stopRequested = false;
 let editingSlot = null;
-let idCounter = 0;
-let currentLightboxResult = null;
+let lightboxResult = null;
 let adjustCtx = null;     // live in-progress edit state while the adjust editor is open
 
-// ---------- elements ----------
-const $ = (id) => document.getElementById(id);
+// ===================================================================================
+//  Elements
+// ===================================================================================
 const settingsBtn = $('settingsBtn');
 const bgPanel = $('bgPanel');
 const bgFileInput = $('bgFileInput');
 const dropZone = $('dropZone');
 const photoFileInput = $('photoFileInput');
 const thumbStrip = $('thumbStrip');
-const bgPicker = $('bgPicker');
 const runBtn = $('runBtn');
 const progressWrap = $('progressWrap');
 const progressBar = $('progressBar');
@@ -319,29 +390,272 @@ const resultsGrid = $('resultsGrid');
 const resultsEmpty = $('resultsEmpty');
 const resultCount = $('resultCount');
 const saveAllRow = $('saveAllRow');
-const toast = $('toast');
+const saveAllBtn = $('saveAllBtn');
+const shareAllBtn = $('shareAllBtn');
+const newBatchBtn = $('newBatchBtn');
 const lightbox = $('lightbox');
 const lightboxImg = $('lightboxImg');
+const lightboxNormalRow = $('lightboxNormalRow');
 const adjustStage = $('adjustStage');
 const adjustBg = $('adjustBg');
 const adjustFg = $('adjustFg');
-const adjustFgCtx = adjustFg.getContext('2d');
+const adjustFgCtx = adjustFg.getContext('2d', { willReadFrequently: true });
 const adjustControls = $('adjustControls');
-const lightboxNormalRow = $('lightboxNormalRow');
 const moveHint = $('moveHint');
 const eraseTools = $('eraseTools');
 const enhanceTools = $('enhanceTools');
-const ENHANCE_KEYS = ['Brightness', 'Contrast', 'Clarity', 'Sharpness', 'Temperature'];
 
-function showToast(msg){
-  toast.textContent = msg;
-  toast.classList.add('show');
-  setTimeout(()=>toast.classList.remove('show'), 1800);
+// ===================================================================================
+//  AI engine (runs in a background worker so the screen never freezes)
+// ===================================================================================
+// This function's source is sent to a Web Worker. It must not use anything from the page.
+function engineWorkerMain(config){
+  let libPromise = null;
+  const loadLib = (threads) => {
+    if (!libPromise){
+      if (threads > 0){
+        try { Object.defineProperty(self.navigator, 'hardwareConcurrency', { get: () => threads }); } catch (e) {}
+      }
+      libPromise = import(config.lib);
+    }
+    return libPromise;
+  };
+  self.onmessage = async (e) => {
+    const { id, file, model, threads } = e.data;
+    try {
+      const lib = await loadLib(threads);
+      const blob = await lib.removeBackground(file, {
+        model,
+        output: { format: 'image/png' },
+        progress: (key, current, total) => self.postMessage({ id, type: 'progress', key, current, total })
+      });
+      self.postMessage({ id, type: 'done', blob });
+    } catch (err) {
+      libPromise = null; // allow a clean retry (e.g. once the connection is back)
+      self.postMessage({ id, type: 'error', message: String((err && err.message) || err) });
+    }
+  };
+  self.postMessage({ type: 'ready', isolated: self.crossOriginIsolated === true, cores: self.navigator.hardwareConcurrency || 0 });
 }
 
-// ---------- render: backgrounds settings panel ----------
+function createEngineWorker(){
+  const source = `(${engineWorkerMain.toString()})(${JSON.stringify({ lib: ENGINE_LIB_URL })});`;
+  const url = URL.createObjectURL(new Blob([source], { type: 'text/javascript' }));
+  const worker = new Worker(url, { type: 'module' });
+  worker.blobUrl = url;
+  return worker;
+}
+
+function readThreadSetting(){
+  try { return localStorage.getItem('bgswap_threads') === '1' ? 1 : MAX_THREADS; } catch { return MAX_THREADS; }
+}
+
+const engine = {
+  worker: null,
+  jobs: new Map(),
+  nextJob: 1,
+  idleTimer: null,
+  workerBroken: false,          // Web Workers unavailable here -> run on the main thread instead
+  maxThreads: readThreadSetting(),
+  mainLib: null,
+
+  wantedThreads(){
+    if (!window.crossOriginIsolated) return 0;  // without isolation the browser allows one thread anyway
+    return Math.max(1, Math.min(this.maxThreads, navigator.hardwareConcurrency || 4));
+  },
+
+  ensureWorker(){
+    if (this.worker) return this.worker;
+    const w = createEngineWorker();
+    w.onmessage = (e) => this.handleMessage(w, e.data);
+    w.onerror = (e) => {
+      if (e.preventDefault) e.preventDefault();
+      const err = new Error(e.message || 'The AI worker could not start');
+      err.workerStartFailure = !w.ready;
+      this.failJobs(err);
+      this.dropWorker();
+    };
+    this.worker = w;
+    return w;
+  },
+
+  handleMessage(w, m){
+    if (m.type === 'ready'){ w.ready = true; URL.revokeObjectURL(w.blobUrl); return; }
+    const job = this.jobs.get(m.id);
+    if (!job) return;
+    if (m.type === 'progress'){ if (job.onProgress) job.onProgress(m.key, m.current, m.total); return; }
+    this.jobs.delete(m.id);
+    if (m.type === 'done'){
+      this.scheduleIdle();
+      job.resolve(m.blob);
+    } else {
+      // A failed job leaves the worker in an unknown state, and a failed engine download stays remembered in
+      // its module cache -- so discard it; the next attempt starts a fresh worker (e.g. once you're back online).
+      if (!this.jobs.size) this.dropWorker();
+      job.reject(new Error(m.message));
+    }
+  },
+
+  failJobs(err){
+    for (const job of this.jobs.values()) job.reject(err);
+    this.jobs.clear();
+  },
+
+  dropWorker(){
+    clearTimeout(this.idleTimer);
+    if (!this.worker) return;
+    try { this.worker.terminate(); } catch {}
+    try { URL.revokeObjectURL(this.worker.blobUrl); } catch {}
+    this.worker = null;
+  },
+
+  scheduleIdle(){
+    clearTimeout(this.idleTimer);
+    this.idleTimer = setTimeout(() => { if (!this.jobs.size) this.dropWorker(); }, ENGINE_IDLE_MS);
+  },
+
+  runInWorker(file, onProgress){
+    clearTimeout(this.idleTimer);
+    return new Promise((resolve, reject) => {
+      let worker;
+      try { worker = this.ensureWorker(); }
+      catch (err){ err.workerStartFailure = true; reject(err); return; }
+      const id = this.nextJob++;
+      this.jobs.set(id, { resolve, reject, onProgress });
+      worker.postMessage({ id, file, model: ENGINE_MODEL, threads: this.wantedThreads() });
+    });
+  },
+
+  async runOnMainThread(file, onProgress){
+    if (!this.mainLib) this.mainLib = import(ENGINE_LIB_URL);
+    let lib;
+    try { lib = await this.mainLib; } catch (err){ this.mainLib = null; throw err; }
+    return lib.removeBackground(file, { model: ENGINE_MODEL, output: { format: 'image/png' }, progress: onProgress });
+  },
+
+  async run(file, onProgress){
+    if (!this.workerBroken){
+      try { return await this.runInWorker(file, onProgress); }
+      catch (err){
+        if (err.workerStartFailure){
+          this.workerBroken = true;                     // fall through to the main-thread path below
+        } else if (this.wantedThreads() > 1 && /memory|thread|shared|allocate|WebAssembly|wasm|abort|RangeError/i.test(err.message)){
+          // Multi-core failed on this device: retry once on a single core and remember it if that works.
+          this.dropWorker();
+          const previous = this.maxThreads;
+          this.maxThreads = 1;
+          try {
+            const blob = await this.runInWorker(file, onProgress);
+            try { localStorage.setItem('bgswap_threads', '1'); } catch {}
+            return blob;
+          } catch (err2){ this.maxThreads = previous; throw err2; }
+        } else {
+          throw err;
+        }
+      }
+    }
+    return this.runOnMainThread(file, onProgress);
+  }
+};
+
+async function engineIsSaved(){
+  try {
+    if (!('caches' in window)) return false;
+    return !!(await (await caches.open(ENGINE_CACHE)).match(ENGINE_RESOURCES_URL));
+  } catch { return false; }
+}
+
+// ===================================================================================
+//  Session persistence (so results survive the phone closing the tab in the background)
+// ===================================================================================
+let dbPromise = null;
+function openDb(){
+  if (!dbPromise){
+    dbPromise = new Promise((resolve, reject) => {
+      if (!('indexedDB' in window)){ reject(new Error('no IndexedDB')); return; }
+      const req = indexedDB.open('bgswap', 1);
+      req.onupgradeneeded = () => {
+        req.result.createObjectStore('meta', { keyPath: 'id' });
+        req.result.createObjectStore('cutouts');
+      };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+  }
+  return dbPromise;
+}
+function idb(stores, mode, work){
+  return openDb().then((db) => new Promise((resolve, reject) => {
+    const tx = db.transaction(stores, mode);
+    const req = work(tx);
+    tx.oncomplete = () => resolve(req && 'result' in req ? req.result : undefined);
+    tx.onerror = tx.onabort = () => reject(tx.error || new Error('IndexedDB error'));
+  }));
+}
+const metaOf = (r) => ({
+  id: r.id, name: r.name, bgIndexUsed: r.bgIndexUsed, transform: r.transform,
+  fgW: r.fgW, fgH: r.fgH, saved: r.saved, shared: r.shared, createdAt: r.createdAt
+});
+// Persistence is a convenience: if the browser refuses (private mode, storage full), the app just carries on.
+function persistMeta(r){
+  idb('meta', 'readwrite', (tx) => tx.objectStore('meta').put(metaOf(r))).catch(() => {});
+}
+function persistResult(r){
+  idb(['meta', 'cutouts'], 'readwrite', (tx) => {
+    tx.objectStore('meta').put(metaOf(r));
+    return tx.objectStore('cutouts').put(r.cutoutBlob, r.id);
+  }).catch(() => {});
+}
+function forgetAllResults(){
+  idb(['meta', 'cutouts'], 'readwrite', (tx) => {
+    tx.objectStore('meta').clear();
+    return tx.objectStore('cutouts').clear();
+  }).catch(() => {});
+}
+
+async function restoreSession(){
+  let rows;
+  try { rows = await idb('meta', 'readonly', (tx) => tx.objectStore('meta').getAll()); } catch { return; }
+  if (!rows || !rows.length) return;
+
+  const cutoff = Date.now() - SESSION_MAX_AGE_MS;
+  const stale = rows.filter((row) => row.createdAt < cutoff);
+  if (stale.length){
+    idb(['meta', 'cutouts'], 'readwrite', (tx) => {
+      for (const row of stale){ tx.objectStore('meta').delete(row.id); tx.objectStore('cutouts').delete(row.id); }
+    }).catch(() => {});
+  }
+  // Newest first, appended to the end, so the list stays newest-first even if the user has already
+  // started processing new photos while this runs.
+  const fresh = rows.filter((row) => row.createdAt >= cutoff).sort((a, b) => b.createdAt - a.createdAt);
+
+  let restored = 0;
+  for (const row of fresh){
+    try {
+      const blob = await idb('cutouts', 'readonly', (tx) => tx.objectStore('cutouts').get(row.id));
+      if (!blob) continue;
+      const bgIdx = backgrounds[row.bgIndexUsed] ? row.bgIndexUsed : (backgrounds[0] ? 0 : (backgrounds[1] ? 1 : -1));
+      if (bgIdx < 0) continue;
+      const cutoutUrl = URL.createObjectURL(blob);
+      const comp = await composite(cutoutUrl, bgIdx, row.transform);
+      results.push({
+        id: row.id, name: row.name, cutoutBlob: blob, cutoutUrl,
+        composedUrl: comp.url, thumbUrl: comp.thumbUrl,
+        bgIndexUsed: bgIdx, transform: row.transform, fgW: row.fgW, fgH: row.fgH,
+        saved: !!row.saved, shared: !!row.shared, createdAt: row.createdAt
+      });
+      restored++;
+      renderResults();
+    } catch (err){ console.warn('Could not restore a photo', err); }
+  }
+  if (restored) showToast(`Restored ${restored} photo${restored === 1 ? '' : 's'} from your last session`, 3000);
+}
+
+// ===================================================================================
+//  Backgrounds
+// ===================================================================================
 function renderBgPanel(){
-  document.querySelectorAll('.bg-slot[data-slot]').forEach(el=>{
+  document.querySelectorAll('.bg-slot[data-slot]').forEach((el) => {
     const i = +el.dataset.slot;
     const bg = backgrounds[i];
     el.innerHTML = '';
@@ -352,228 +666,306 @@ function renderBgPanel(){
     }
     const label = document.createElement('div');
     label.className = 'label';
-    label.textContent = bg?.name || `Background ${i+1}`;
+    label.textContent = bg?.name || `Background ${i + 1}`;
     el.appendChild(label);
   });
 }
 
 function renderBgPicker(){
-  document.querySelectorAll('.bg-slot[data-pick]').forEach(el=>{
+  document.querySelectorAll('.bg-slot[data-pick]').forEach((el) => {
     const i = +el.dataset.pick;
     const bg = backgrounds[i];
     el.innerHTML = '';
     el.classList.toggle('selected', i === activeBgIndex);
     if (bg){
       const img = document.createElement('img'); img.src = bg.dataUrl; el.appendChild(img);
-      const label = document.createElement('div'); label.className='label'; label.textContent = bg.name || `Background ${i+1}`;
+      const label = document.createElement('div'); label.className = 'label'; label.textContent = bg.name || `Background ${i + 1}`;
       el.appendChild(label);
     } else {
       const span = document.createElement('span'); span.textContent = 'Not set yet — tap ⚙️ above'; el.appendChild(span);
     }
     if (i === activeBgIndex){
-      const check = document.createElement('div'); check.className='check'; check.textContent='✓'; el.appendChild(check);
+      const check = document.createElement('div'); check.className = 'check'; check.textContent = '✓'; el.appendChild(check);
     }
   });
-  updateRunEnabled();
+  updateRunButton();
 }
 
-function updateRunEnabled(){
-  const hasBg = !!backgrounds[activeBgIndex];
-  runBtn.disabled = !(hasBg && pendingPhotos.length > 0);
-}
-
-// ---------- backgrounds: set/replace ----------
-settingsBtn.addEventListener('click', ()=>{
+settingsBtn.addEventListener('click', () => {
   bgPanel.classList.toggle('open');
+  if (bgPanel.classList.contains('open')) refreshAboutLine();
 });
 
-document.querySelectorAll('.bg-slot[data-slot]').forEach(el=>{
-  el.addEventListener('click', ()=>{
+document.querySelectorAll('.bg-slot[data-slot]').forEach((el) => {
+  el.addEventListener('click', () => {
     editingSlot = +el.dataset.slot;
     bgFileInput.click();
   });
 });
 
-bgFileInput.addEventListener('change', async (e)=>{
+bgFileInput.addEventListener('change', async (e) => {
   const file = e.target.files[0];
-  if (!file) return;
-  const dataUrl = await fileToDataUrl(file, 1600);
-  backgrounds[editingSlot] = { name: `Background ${editingSlot+1}`, dataUrl };
-  saveBackgrounds(backgrounds);
-  renderBgPanel();
-  renderBgPicker();
   bgFileInput.value = '';
+  if (!file) return;
+  try {
+    const dataUrl = await backgroundToDataUrl(file, MAX_PHOTO_DIM);
+    const next = backgrounds.slice();
+    next[editingSlot] = { name: `Background ${editingSlot + 1}`, dataUrl };
+    if (!saveBackgrounds(next)) return;
+    backgrounds = next;
+    renderBgPanel();
+    renderBgPicker();
+  } catch { showToast('Could not read that image'); }
 });
 
-document.querySelectorAll('.bg-slot[data-pick]').forEach(el=>{
-  el.addEventListener('click', ()=>{
+document.querySelectorAll('.bg-slot[data-pick]').forEach((el) => {
+  el.addEventListener('click', () => {
     const i = +el.dataset.pick;
     if (!backgrounds[i]){ showToast('Set this background first (tap ⚙️)'); return; }
     activeBgIndex = i;
-    localStorage.setItem(LS_LAST, String(i));
+    try { localStorage.setItem(LS_LAST, String(i)); } catch {}
     renderBgPicker();
   });
 });
 
-function fileToDataUrl(file, maxDim){
-  return new Promise((resolve, reject)=>{
-    const reader = new FileReader();
-    reader.onload = () => {
-      const img = new Image();
-      img.onload = () => {
-        let { width, height } = img;
-        if (width > maxDim || height > maxDim){
-          const scale = maxDim / Math.max(width, height);
-          width = Math.round(width*scale); height = Math.round(height*scale);
-        }
-        const canvas = document.createElement('canvas');
-        canvas.width = width; canvas.height = height;
-        canvas.getContext('2d').drawImage(img, 0, 0, width, height);
-        resolve(canvas.toDataURL('image/jpeg', 0.9));
-      };
-      img.onerror = reject;
-      img.src = reader.result;
-    };
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
+async function backgroundToDataUrl(file, maxDim){
+  const img = await createImageBitmap(file);
+  try {
+    const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(img.width * scale);
+    canvas.height = Math.round(img.height * scale);
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#fff';                       // transparent PNGs flatten onto white, not black
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    return canvas.toDataURL('image/jpeg', 0.9);
+  } finally { img.close(); }
 }
 
-// ---------- photo picking ----------
-dropZone.addEventListener('click', ()=> photoFileInput.click());
+// Decoded background images, so compositing doesn't re-decode them every time. (Old ones are left for the
+// garbage collector rather than closed: a photo being composited right now may still be drawing from one.)
+const bgImageCache = [null, null];
+async function getBgImage(idx){
+  const bg = backgrounds[idx];
+  const cached = bgImageCache[idx];
+  if (cached && cached.dataUrl === bg.dataUrl) return cached.img;
+  const img = await loadImage(bg.dataUrl);
+  bgImageCache[idx] = { dataUrl: bg.dataUrl, img };
+  return img;
+}
 
-photoFileInput.addEventListener('change', async (e)=>{
+// ===================================================================================
+//  Photo queue
+// ===================================================================================
+dropZone.addEventListener('click', () => photoFileInput.click());
+
+photoFileInput.addEventListener('change', async (e) => {
   const files = Array.from(e.target.files || []);
   photoFileInput.value = '';
+  let unreadable = 0;
   for (const rawFile of files){
-    const file = await resizePhotoFile(rawFile, 1600);
-    pendingPhotos.push({ id: ++idCounter, file, url: URL.createObjectURL(file) });
-    renderThumbs();
-    updateRunEnabled();
+    try {
+      const prepared = await preparePhoto(rawFile);
+      pendingPhotos.push({ id: newId(), file: prepared.file, name: rawFile.name || 'photo.jpg', thumbUrl: prepared.thumbUrl });
+      renderThumbs();
+      updateRunButton();
+    } catch { unreadable++; }
   }
+  if (unreadable) showToast(`Couldn't read ${unreadable} photo${unreadable === 1 ? '' : 's'} — skipped`, 3000);
 });
 
-// Phone photos can be 12MP+; that's far more detail than needed once composited onto a
-// ~1600px background, and it makes the Enhance sliders (which blur every pixel for
-// Clarity/Sharpness) noticeably laggy. Cap resolution up front -- faster AI removal,
-// faster Enhance, smaller saved/shared files, no visible quality loss on a phone screen.
-function resizePhotoFile(file, maxDim){
-  return new Promise((resolve, reject)=>{
-    const reader = new FileReader();
-    reader.onload = () => {
-      const img = new Image();
-      img.onload = () => {
-        if (img.naturalWidth <= maxDim && img.naturalHeight <= maxDim){
-          resolve(file);
-          return;
-        }
-        const scale = maxDim / Math.max(img.naturalWidth, img.naturalHeight);
-        const width = Math.round(img.naturalWidth * scale);
-        const height = Math.round(img.naturalHeight * scale);
-        const canvas = document.createElement('canvas');
-        canvas.width = width; canvas.height = height;
-        canvas.getContext('2d').drawImage(img, 0, 0, width, height);
-        canvas.toBlob(blob => {
-          resolve(new File([blob], file.name, { type: 'image/jpeg' }));
-        }, 'image/jpeg', 0.92);
-      };
-      img.onerror = reject;
-      img.src = reader.result;
-    };
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
+// Phone photos can be 12MP+: far more than needed once composited onto a ~1600px background, and
+// it makes the AI and the Enhance sliders much slower. Scale down once, up front, and make a tiny
+// thumbnail so the on-screen lists don't keep full-size pictures decoded in memory.
+async function preparePhoto(rawFile){
+  const img = await createImageBitmap(rawFile);
+  try {
+    const W = img.width, H = img.height;
+
+    const ts = Math.min(1, 200 / Math.max(W, H));
+    const thumb = document.createElement('canvas');
+    thumb.width = Math.max(1, Math.round(W * ts));
+    thumb.height = Math.max(1, Math.round(H * ts));
+    const tctx = thumb.getContext('2d');
+    tctx.imageSmoothingQuality = 'high';
+    tctx.drawImage(img, 0, 0, thumb.width, thumb.height);
+    const thumbUrl = thumb.toDataURL('image/jpeg', 0.7);
+
+    let file = rawFile;
+    if (W > MAX_PHOTO_DIM || H > MAX_PHOTO_DIM){
+      const s = MAX_PHOTO_DIM / Math.max(W, H);
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(W * s);
+      canvas.height = Math.round(H * s);
+      const ctx = canvas.getContext('2d');
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      const blob = await canvasToBlob(canvas, 'image/jpeg', 0.92);
+      file = new File([blob], rawFile.name || 'photo.jpg', { type: 'image/jpeg' });
+    }
+    return { file, thumbUrl };
+  } finally { img.close(); }
 }
 
 function renderThumbs(){
   thumbStrip.innerHTML = '';
-  pendingPhotos.forEach(p=>{
+  pendingPhotos.forEach((p) => {
     const d = document.createElement('div');
     d.className = 'thumb';
-    d.innerHTML = `<img src="${p.url}"><div class="x">✕</div>`;
-    d.querySelector('.x').addEventListener('click', ()=>{
-      pendingPhotos = pendingPhotos.filter(x=>x.id!==p.id);
+    const img = document.createElement('img');
+    img.src = p.thumbUrl;
+    const x = document.createElement('button');
+    x.className = 'x';
+    x.type = 'button';
+    x.setAttribute('aria-label', 'Remove photo');
+    x.textContent = '✕';
+    x.addEventListener('click', () => {
+      pendingPhotos = pendingPhotos.filter((q) => q.id !== p.id);
       renderThumbs();
-      updateRunEnabled();
+      updateRunButton();
     });
+    d.append(img, x);
     thumbStrip.appendChild(d);
   });
 }
 
-// ---------- processing ----------
-runBtn.addEventListener('click', runBatch);
+function updateRunButton(){
+  if (processing){
+    runBtn.disabled = stopRequested;
+    runBtn.textContent = stopRequested ? 'Stopping…' : '⏹ Stop after this photo';
+    runBtn.classList.remove('btn-primary');
+    runBtn.classList.add('btn-ghost');
+    return;
+  }
+  runBtn.classList.add('btn-primary');
+  runBtn.classList.remove('btn-ghost');
+  const n = pendingPhotos.length;
+  runBtn.textContent = n > 1 ? `Remove background & apply (${n})` : 'Remove background & apply';
+  runBtn.disabled = !(backgrounds[activeBgIndex] && n > 0);
+}
 
-async function runBatch(){
-  if (!backgrounds[activeBgIndex] || pendingPhotos.length===0) return;
-  runBtn.disabled = true;
+// ===================================================================================
+//  Processing
+// ===================================================================================
+runBtn.addEventListener('click', () => {
+  if (processing){ stopRequested = true; updateRunButton(); return; }
+  runQueue();
+});
+
+function setProgress(fraction, text){
+  progressBar.style.width = `${Math.round(Math.max(0, Math.min(1, fraction)) * 100)}%`;
+  if (text) progressText.textContent = text;
+}
+
+async function runQueue(){
+  if (processing || !backgrounds[activeBgIndex] || !pendingPhotos.length) return;
+  processing = true;
+  stopRequested = false;
   progressWrap.classList.add('show');
-  const total = pendingPhotos.length;
-  const batch = pendingPhotos.slice();
-  pendingPhotos = [];
-  renderThumbs();
+  updateRunButton();
+  const saved = await engineIsSaved();
 
-  for (let i=0; i<batch.length; i++){
-    const photo = batch[i];
-    progressText.textContent = `Processing ${i+1} of ${total}…`;
-    progressBar.style.width = `${Math.round((i/total)*100)}%`;
-    try{
-      const cutoutBlob = await removeBackground(photo.file, {
-        model: 'isnet',
-        output: { format: 'image/png' },
-        progress: (key, current, current_total) => {
-          if (current_total){
-            const pct = Math.round((current/current_total)*100);
-            progressText.textContent = `Processing ${i+1} of ${total}… (${key.includes('fetch')?'downloading model '+pct+'%':'working '+pct+'%'})`;
-          }
-        }
-      });
-      progressText.textContent = `Processing ${i+1} of ${total}… (cleaning up edges)`;
-      const cutoutUrl = await cleanupCutout(cutoutBlob);
-      const fgDims = await getImageDims(cutoutUrl);
+  let done = 0, consecutiveFailures = 0;
+  const failed = [];
+  let lastError = null;
+
+  while (pendingPhotos.length && !stopRequested){
+    const photo = pendingPhotos.shift();
+    renderThumbs();
+    const total = done + 1 + pendingPhotos.length;
+    const label = `Photo ${done + 1} of ${total}`;
+    const base = done / total, span = 1 / total;
+    setProgress(base, `${label} · starting…`);
+
+    const fetchParts = {};
+    const onProgress = (key, current, size) => {
+      if (String(key).startsWith('fetch')){
+        fetchParts[key] = { current, size };
+        let c = 0, s = 0;
+        for (const k in fetchParts){ c += fetchParts[k].current; s += fetchParts[k].size; }
+        const pct = s ? Math.round((c / s) * 100) : 0;
+        setProgress(base + span * 0.4 * (s ? c / s : 0),
+          saved ? `${label} · loading AI engine… ${pct}%`
+                : `${label} · downloading AI engine (one time, ~190 MB — Wi‑Fi recommended)… ${pct}%`);
+      } else {
+        setProgress(base + span * (0.4 + 0.5 * (size ? current / size : 0)), `${label} · removing background…`);
+      }
+    };
+
+    try {
+      const t0 = performance.now();
+      const raw = await engine.run(photo.file, onProgress);
+      const t1 = performance.now();
+      setProgress(base + span * 0.9, `${label} · cleaning up edges…`);
+      const cut = await cleanupCutout(raw);
+      const t2 = performance.now();
+      const bgIdx = activeBgIndex;
       const transform = { scale: 1, dx: 0, dy: 0 };
-      const composedUrl = await composite(cutoutUrl, backgrounds[activeBgIndex].dataUrl, transform);
-      results.unshift({
-        id: photo.id, srcUrl: photo.url, cutoutUrl, composedUrl,
-        bgIndexUsed: activeBgIndex, transform, fgW: fgDims.w, fgH: fgDims.h
-      });
-    } catch(err){
+      const cutoutBlob = await canvasToBlob(cut.canvas, 'image/png');
+      const cutoutUrl = URL.createObjectURL(cutoutBlob);
+      const comp = await composite(cut.canvas, bgIdx, transform);
+      const r = {
+        id: photo.id, name: photo.name, cutoutBlob, cutoutUrl, composedUrl: comp.url, thumbUrl: comp.thumbUrl,
+        bgIndexUsed: bgIdx, transform, fgW: cut.w, fgH: cut.h, saved: false, shared: false, createdAt: Date.now()
+      };
+      results.unshift(r);
+      persistResult(r);
+      const t3 = performance.now();
+      console.debug('[bgswap] photo timings (ms)', { ai: Math.round(t1 - t0), cleanup: Math.round(t2 - t1), saveAndComposite: Math.round(t3 - t2), name: photo.name });
+      consecutiveFailures = 0;
+    } catch (err){
       console.error(err);
-      showToast('Could not process one photo — skipped.');
+      lastError = err;
+      failed.push(photo);
+      consecutiveFailures++;
+      showToast(`Couldn't process ${photo.name}`, 2500);
+      if (consecutiveFailures >= 2) break;   // something systemic (e.g. offline): stop instead of failing every photo
     }
+    done++;
     renderResults();
   }
-  progressBar.style.width = '100%';
-  progressText.textContent = 'Done!';
-  setTimeout(()=>{ progressWrap.classList.remove('show'); progressBar.style.width='0%'; }, 900);
-  updateRunEnabled();
+
+  if (failed.length) pendingPhotos = failed.concat(pendingPhotos); // failed photos go back in the queue to retry
+  processing = false;
+  renderThumbs();
+  updateRunButton();
+  refreshAboutLine();
+
+  let finalText = 'Done!', keepMs = 900;
+  if (consecutiveFailures >= 2){
+    const offline = lastError && /fetch|network|import|load/i.test(String(lastError.message));
+    finalText = offline ? 'Stopped — couldn’t load the AI engine. Check your internet connection (needed once), then try again.'
+                        : 'Stopped — those photos couldn’t be processed. They’re back in your queue.';
+    keepMs = 6000;
+  } else if (stopRequested){
+    finalText = pendingPhotos.length ? `Stopped — ${pendingPhotos.length} photo${pendingPhotos.length === 1 ? '' : 's'} still in your queue.` : 'Done!';
+    keepMs = 3000;
+  } else if (failed.length){
+    finalText = `Done — ${failed.length} photo${failed.length === 1 ? '' : 's'} couldn’t be processed (back in your queue).`;
+    keepMs = 4000;
+  }
+  stopRequested = false;
+  setProgress(1, finalText);
+  setTimeout(() => { if (!processing){ progressWrap.classList.remove('show'); progressBar.style.width = '0%'; } }, keepMs);
 }
 
-function getImageDims(url){
-  return new Promise((resolve, reject)=>{
-    const img = new Image();
-    img.onload = () => resolve({ w: img.naturalWidth, h: img.naturalHeight });
-    img.onerror = reject;
-    img.src = url;
-  });
-}
-
-// The model sometimes leaves small disconnected specks of "foreground" scattered
-// where the background used to be. Find connected regions of the alpha mask and
-// erase every region except the main subject, without touching its edge softness.
+// ===================================================================================
+//  Cut-out clean-up (stray blobs + colour fringes)
+// ===================================================================================
+// 1. The model sometimes leaves small disconnected specks of "foreground" where the background was:
+//    find connected regions of the alpha mask and erase everything except the main subject.
+// 2. Semi-transparent edge pixels still carry colour from the OLD background (a light halo once the
+//    person sits on a dark background). Replace their colour with the colour of the nearby solid pixels.
 async function cleanupCutout(blob){
-  const url = URL.createObjectURL(blob);
-  const img = await new Promise((resolve, reject)=>{
-    const im = new Image();
-    im.onload = () => resolve(im);
-    im.onerror = reject;
-    im.src = url;
-  });
-
-  const w = img.naturalWidth, h = img.naturalHeight;
+  const img = await createImageBitmap(blob);
+  const w = img.width, h = img.height;
   const canvas = document.createElement('canvas');
   canvas.width = w; canvas.height = h;
-  const ctx = canvas.getContext('2d');
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
   ctx.drawImage(img, 0, 0);
+  img.close();
   const imageData = ctx.getImageData(0, 0, w, h);
   const data = imageData.data;
   const n = w * h;
@@ -611,17 +1003,56 @@ async function cleanupCutout(blob){
     for (let i = 1; i < sizes.length; i++) if (sizes[i] > sizes[largest]) largest = i;
     const keepThreshold = Math.max(300, sizes[largest] * 0.04);
     for (let i = 0; i < n; i++){
-      if (isFg[i] && sizes[labels[i]] < keepThreshold){
-        data[i * 4 + 3] = 0;
-      }
+      if (isFg[i] && sizes[labels[i]] < keepThreshold) data[i * 4 + 3] = 0;
     }
-    ctx.putImageData(imageData, 0, 0);
   }
 
-  return new Promise(resolve => canvas.toBlob(b => resolve(URL.createObjectURL(b)), 'image/png'));
+  decontaminateEdges(data, w, h);
+  ctx.putImageData(imageData, 0, 0);
+  return { canvas, w, h };
 }
 
-// Shared geometry: default fit is 92% of canvas height, bottom-anchored, centered.
+function decontaminateEdges(data, w, h){
+  const n = w * h;
+  const solid = new ImageData(w, h);
+  const s = solid.data;
+  let solidCount = 0;
+  for (let i = 0; i < n; i++){
+    const o = i * 4;
+    if (data[o + 3] >= 250){
+      s[o] = data[o]; s[o + 1] = data[o + 1]; s[o + 2] = data[o + 2]; s[o + 3] = 255;
+      solidCount++;
+    }
+  }
+  if (!solidCount) return;
+  // Blurring only the solid pixels gives, for every pixel near the subject, the average colour of the
+  // solid pixels around it (the canvas blurs premultiplied, so transparent areas don't darken it).
+  const blurred = blurImageData(solid, 5).data;
+  for (let i = 0; i < n; i++){
+    const o = i * 4, a = data[o + 3];
+    if (a > 0 && a < 250 && blurred[o + 3] > 40){
+      data[o] = blurred[o]; data[o + 1] = blurred[o + 1]; data[o + 2] = blurred[o + 2];
+    }
+  }
+}
+
+function blurImageData(imageData, radiusPx){
+  const w = imageData.width, h = imageData.height;
+  const src = document.createElement('canvas');
+  src.width = w; src.height = h;
+  src.getContext('2d').putImageData(imageData, 0, 0);
+  const out = document.createElement('canvas');
+  out.width = w; out.height = h;
+  const octx = out.getContext('2d', { willReadFrequently: true });
+  octx.filter = `blur(${radiusPx}px)`;
+  octx.drawImage(src, 0, 0);
+  return octx.getImageData(0, 0, w, h);
+}
+
+// ===================================================================================
+//  Compositing
+// ===================================================================================
+// Default fit is 92% of the canvas height, bottom-anchored, centred.
 // transform.scale is a multiplier on that default size; dx/dy are pixel offsets (canvas space).
 function fgRect(canvasW, canvasH, fgW, fgH, transform){
   const baseScale = (canvasH * 0.92) / fgH;
@@ -633,72 +1064,124 @@ function fgRect(canvasW, canvasH, fgW, fgH, transform){
   return { x, y, w, h };
 }
 
-function composite(cutoutUrl, bgDataUrl, transform = { scale: 1, dx: 0, dy: 0 }){
-  return new Promise((resolve, reject)=>{
-    const bgImg = new Image();
-    bgImg.onload = ()=>{
-      const fgImg = new Image();
-      fgImg.onload = ()=>{
-        const canvas = document.createElement('canvas');
-        canvas.width = bgImg.naturalWidth;
-        canvas.height = bgImg.naturalHeight;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(bgImg, 0, 0, canvas.width, canvas.height);
+// `source` is the cut-out: either a URL to load, or something drawable (a canvas) that's already in memory.
+async function composite(source, bgIdx, transform){
+  const loadedHere = typeof source === 'string';
+  const [bgImg, fg] = await Promise.all([getBgImage(bgIdx), loadedHere ? loadImage(source) : source]);
+  const canvas = document.createElement('canvas');
+  canvas.width = bgImg.width;
+  canvas.height = bgImg.height;
+  const ctx = canvas.getContext('2d');
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(bgImg, 0, 0, canvas.width, canvas.height);
+  const rect = fgRect(canvas.width, canvas.height, fg.width, fg.height, transform);
+  ctx.drawImage(fg, rect.x, rect.y, rect.w, rect.h);
+  if (loadedHere) fg.close();
 
-        const rect = fgRect(canvas.width, canvas.height, fgImg.naturalWidth, fgImg.naturalHeight, transform);
-        ctx.drawImage(fgImg, rect.x, rect.y, rect.w, rect.h);
+  const blob = await canvasToBlob(canvas, 'image/jpeg', 0.93);
 
-        canvas.toBlob(blob=>{
-          resolve(URL.createObjectURL(blob));
-        }, 'image/jpeg', 0.93);
-      };
-      fgImg.onerror = reject;
-      fgImg.src = cutoutUrl;
-    };
-    bgImg.onerror = reject;
-    bgImg.src = bgDataUrl;
-  });
+  const ts = Math.min(1, 420 / canvas.width);
+  const thumb = document.createElement('canvas');
+  thumb.width = Math.max(1, Math.round(canvas.width * ts));
+  thumb.height = Math.max(1, Math.round(canvas.height * ts));
+  const tctx = thumb.getContext('2d');
+  tctx.imageSmoothingQuality = 'high';
+  tctx.drawImage(canvas, 0, 0, thumb.width, thumb.height);
+  return { url: URL.createObjectURL(blob), thumbUrl: thumb.toDataURL('image/jpeg', 0.8) };
 }
 
-// ---------- results rendering ----------
+// ===================================================================================
+//  Results
+// ===================================================================================
+const isDone = (r) => r.saved || r.shared;
+
 function renderResults(){
+  const doneCount = results.filter(isDone).length;
   resultsEmpty.style.display = results.length ? 'none' : 'block';
-  saveAllRow.style.display = results.length ? 'flex' : 'none';
-  resultCount.textContent = results.length ? `(${results.length})` : '';
+  saveAllRow.style.display = results.length ? 'block' : 'none';
+  const doneNote = !doneCount ? '' : doneCount === results.length ? ' · all saved' : ` · ${doneCount} saved`;
+  resultCount.textContent = results.length ? `(${results.length}${doneNote})` : '';
+  updateBulkButtons();
+
   resultsGrid.innerHTML = '';
-  results.forEach(r=>{
+  results.forEach((r) => {
     const card = document.createElement('div');
     card.className = 'result-card';
+    const badge = r.saved ? '<div class="badge">✓ Saved</div>' : r.shared ? '<div class="badge">✓ Shared</div>' : '';
     card.innerHTML = `
-      <div class="img-wrap"><img src="${r.composedUrl}" data-id="${r.id}"></div>
+      <div class="img-wrap"><img src="${r.thumbUrl}" alt="">${badge}</div>
       <div class="result-actions">
-        <button data-act="bg0" class="${r.bgIndexUsed===0?'swap-active':''}">BG 1</button>
-        <button data-act="bg1" class="${r.bgIndexUsed===1?'swap-active':''}">BG 2</button>
-        <button data-act="save">⬇ Save</button>
-        <button data-act="share">↗ Share</button>
+        <button data-act="bg0" class="${r.bgIndexUsed === 0 ? 'swap-active' : ''}">BG 1</button>
+        <button data-act="bg1" class="${r.bgIndexUsed === 1 ? 'swap-active' : ''}">BG 2</button>
+        <button data-act="save" class="${r.saved ? 'done' : ''}">${r.saved ? '✓ Saved' : '⬇ Save'}</button>
+        <button data-act="share" class="${r.shared ? 'done' : ''}">${r.shared ? '✓ Shared' : '↗ Share'}</button>
       </div>`;
-    card.querySelector('img').addEventListener('click', ()=> openLightbox(r));
-    card.querySelector('[data-act="bg0"]').addEventListener('click', ()=> switchBg(r, 0));
-    card.querySelector('[data-act="bg1"]').addEventListener('click', ()=> switchBg(r, 1));
-    card.querySelector('[data-act="save"]').addEventListener('click', (e)=> saveImage(r.composedUrl, e.currentTarget));
-    card.querySelector('[data-act="share"]').addEventListener('click', ()=> shareImage(r.composedUrl));
+    card.querySelector('img').addEventListener('click', () => openLightbox(r));
+    card.querySelector('[data-act="bg0"]').addEventListener('click', () => switchBg(r, 0));
+    card.querySelector('[data-act="bg1"]').addEventListener('click', () => switchBg(r, 1));
+    card.querySelector('[data-act="save"]').addEventListener('click', () => saveResult(r));
+    card.querySelector('[data-act="share"]').addEventListener('click', () => shareResult(r));
     resultsGrid.appendChild(card);
   });
 }
 
-async function switchBg(r, idx){
-  if (!backgrounds[idx]){ showToast('That background isn\'t set yet'); return; }
-  if (r.bgIndexUsed === idx) return;
-  r.composedUrl = await composite(r.cutoutUrl, backgrounds[idx].dataUrl, r.transform);
-  r.bgIndexUsed = idx;
-  renderResults();
+function updateBulkButtons(){
+  const remaining = results.filter((r) => !isDone(r)).length;
+  if (!results.length) return;
+  if (remaining === 0){
+    saveAllBtn.textContent = '✓ All saved';
+    saveAllBtn.disabled = true;
+  } else {
+    saveAllBtn.textContent = remaining === results.length ? `⬇ Save all (${results.length})` : `⬇ Save remaining (${remaining})`;
+    saveAllBtn.disabled = false;
+  }
+  shareAllBtn.textContent = `↗ Share all (${results.length})`;
+  shareAllBtn.style.display = (navigator.canShare && navigator.share) ? '' : 'none';
 }
 
-// ---------- save / share ----------
-async function urlToFile(url, name){
-  const res = await fetch(url);
-  const blob = await res.blob();
-  return new File([blob], name, { type: blob.type });
+function markDone(r, kind){
+  r[kind] = true;
+  persistMeta(r);
+  renderResults();
+  refreshLightboxButtons();
+}
+
+function discardImages(r){
+  revoke(r.cutoutUrl);
+  revoke(r.composedUrl);
+}
+
+const switching = new Set();
+async function switchBg(r, idx){
+  if (!backgrounds[idx]){ showToast('That background isn’t set yet'); return; }
+  if (r.bgIndexUsed === idx || switching.has(r.id)) return;
+  switching.add(r.id);
+  try {
+    const comp = await composite(r.cutoutUrl, idx, r.transform);
+    revoke(r.composedUrl);
+    r.composedUrl = comp.url;
+    r.thumbUrl = comp.thumbUrl;
+    r.bgIndexUsed = idx;
+    r.saved = false; r.shared = false;      // the picture changed, so any earlier save is out of date
+    persistMeta(r);
+    renderResults();
+    if (lightboxResult === r) lightboxImg.src = r.composedUrl;
+    refreshLightboxButtons();
+  } catch (err){
+    console.error(err);
+    showToast('Could not switch the background — try again');
+  } finally { switching.delete(r.id); }
+}
+
+// ===================================================================================
+//  Save / share
+// ===================================================================================
+function fileNameFor(r, used){
+  const stem = `${baseName(r.name)}-bgswap`;
+  let name = `${stem}.jpg`, k = 2;
+  while (used && used.has(name)) name = `${stem}-${k++}.jpg`;
+  if (used) used.add(name);
+  return name;
 }
 
 function triggerDownload(url, filename){
@@ -710,70 +1193,124 @@ function triggerDownload(url, filename){
   a.remove();
 }
 
-function flashSaved(btn){
-  if (!btn) return;
-  const orig = btn.dataset.origLabel || btn.textContent;
-  btn.dataset.origLabel = orig;
-  btn.textContent = '✓ Saved';
-  btn.disabled = true;
-  setTimeout(()=>{ btn.textContent = orig; btn.disabled = false; }, 1500);
-}
-
-function saveImage(url, btn){
-  triggerDownload(url, `bgswap-${Date.now()}.jpg`);
+function saveResult(r){
+  if (Date.now() - (r.lastSaveAt || 0) < 1500) return;   // ignore accidental double-taps
+  r.lastSaveAt = Date.now();
+  triggerDownload(r.composedUrl, fileNameFor(r));
   showToast('Saved to your device ✓');
-  flashSaved(btn);
+  markDone(r, 'saved');
 }
 
-async function shareImage(url){
-  try{
-    const file = await urlToFile(url, `bgswap-${Date.now()}.jpg`);
+async function resultFile(r){
+  const blob = await (await fetch(r.composedUrl)).blob();
+  return new File([blob], fileNameFor(r), { type: 'image/jpeg' });
+}
+
+async function shareResult(r){
+  try {
+    const file = await resultFile(r);
     if (navigator.canShare && navigator.canShare({ files: [file] })){
       await navigator.share({ files: [file], title: 'Photo' });
+      markDone(r, 'shared');
     } else {
-      saveImage(url);
-      showToast('Sharing not supported here — saved instead.');
+      saveResult(r);
+      showToast('Sharing isn’t supported here — saved instead.');
     }
-  } catch(err){
+  } catch (err){
     if (err?.name !== 'AbortError') showToast('Could not share — try Save instead.');
   }
 }
 
-$('saveAllBtn').addEventListener('click', async (e)=>{
-  const btn = e.currentTarget;
-  const orig = btn.textContent;
-  btn.disabled = true;
-  btn.textContent = 'Zipping…';
-  try{
-    const { default: JSZip } = await import('https://cdn.jsdelivr.net/npm/jszip@3.10.1/+esm');
-    const zip = new JSZip();
-    for (let i=0; i<results.length; i++){
-      const blob = await (await fetch(results[i].composedUrl)).blob();
-      zip.file(`bgswap-${i+1}.jpg`, blob);
-    }
-    const content = await zip.generateAsync({ type: 'blob' });
-    triggerDownload(URL.createObjectURL(content), `bgswap-batch-${Date.now()}.zip`);
-    showToast(`Saved ${results.length} photo${results.length===1?'':'s'} to your device ✓`);
-    btn.textContent = '✓ Saved';
-  } finally {
-    setTimeout(()=>{ btn.textContent = orig; btn.disabled = false; }, 1500);
+saveAllBtn.addEventListener('click', async () => {
+  const todo = results.filter((r) => !isDone(r));
+  if (!todo.length) return;
+  saveAllBtn.disabled = true;
+  const used = new Set();
+  for (const r of todo.slice().reverse()){   // oldest first, so the files sort in the order you processed them
+    triggerDownload(r.composedUrl, fileNameFor(r, used));
+    r.saved = true;
+    persistMeta(r);
+    await new Promise((resolve) => setTimeout(resolve, 350)); // gives the browser room to start each download
   }
-});
-
-$('newBatchBtn').addEventListener('click', ()=>{
-  results = [];
+  showToast(`Saved ${todo.length} photo${todo.length === 1 ? '' : 's'} to your device ✓`, 2500);
   renderResults();
 });
 
-// ---------- lightbox ----------
+shareAllBtn.addEventListener('click', async () => {
+  try {
+    const used = new Set();
+    const files = await Promise.all(results.slice().reverse().map(async (r) => {
+      const blob = await (await fetch(r.composedUrl)).blob();
+      return new File([blob], fileNameFor(r, used), { type: 'image/jpeg' });
+    }));
+    if (!navigator.canShare || !navigator.canShare({ files })){
+      showToast('Sharing this many photos isn’t supported here — use Save all.', 3500);
+      return;
+    }
+    await navigator.share({ files, title: 'Photos' });
+    results.forEach((r) => { r.shared = true; persistMeta(r); });
+    renderResults();
+  } catch (err){
+    if (err?.name !== 'AbortError') showToast('Could not share — try Save all instead.', 3000);
+  }
+});
+
+let newBatchArmed = null;
+newBatchBtn.addEventListener('click', () => {
+  const unsaved = results.filter((r) => !isDone(r)).length;
+  if (unsaved && !newBatchArmed){
+    newBatchBtn.textContent = `Tap again — ${unsaved} not saved yet`;
+    newBatchArmed = setTimeout(() => { newBatchArmed = null; newBatchBtn.textContent = '↺ New batch'; }, 3500);
+    return;
+  }
+  clearTimeout(newBatchArmed);
+  newBatchArmed = null;
+  newBatchBtn.textContent = '↺ New batch';
+  results.forEach(discardImages);
+  results = [];
+  forgetAllResults();
+  renderResults();
+});
+
+// ===================================================================================
+//  Back button: closes the photo viewer instead of leaving the app
+// ===================================================================================
+let historyDepth = 0;      // history entries this app has pushed
+let ignorePops = 0;        // popstate events caused by our own history.go() calls
+function pushUiState(){ history.pushState({ bgswap: true }, ''); historyDepth++; }
+function popUiState(steps = 1){
+  const k = Math.min(steps, historyDepth);
+  if (k > 0){ historyDepth -= k; ignorePops++; history.go(-k); }   // one popstate event, however many steps
+}
+window.addEventListener('popstate', () => {
+  if (ignorePops > 0){ ignorePops--; return; }
+  if (historyDepth > 0) historyDepth--;
+  if (adjustCtx) exitAdjustUi();
+  else if (lightbox.classList.contains('open')) closeLightboxUi();
+});
+
+// ===================================================================================
+//  Photo viewer
+// ===================================================================================
 function openLightbox(r){
-  currentLightboxResult = r;
+  lightboxResult = r;
   lightboxImg.src = r.composedUrl;
   lightbox.classList.add('open');
   showNormalView();
-  $('lightboxSave').onclick = (e)=> saveImage(r.composedUrl, e.currentTarget);
-  $('lightboxShare').onclick = ()=> shareImage(r.composedUrl);
-  $('lightboxAdjust').onclick = ()=> enterAdjust(r);
+  refreshLightboxButtons();
+  $('lightboxSave').onclick = () => saveResult(r);
+  $('lightboxShare').onclick = () => shareResult(r);
+  $('lightboxAdjust').onclick = () => enterAdjust(r);
+  pushUiState();
+}
+
+function refreshLightboxButtons(){
+  const r = lightboxResult;
+  if (!r || !lightbox.classList.contains('open')) return;
+  const save = $('lightboxSave'), share = $('lightboxShare');
+  save.textContent = r.saved ? '✓ Saved' : '⬇ Save';
+  save.classList.toggle('done', !!r.saved);
+  share.textContent = r.shared ? '✓ Shared' : '↗ Share';
 }
 
 function showNormalView(){
@@ -783,28 +1320,31 @@ function showNormalView(){
   adjustControls.style.display = 'none';
 }
 
-$('lightboxClose').addEventListener('click', ()=>{
-  adjustCtx = null;
+function closeLightboxUi(){
+  if (adjustCtx) exitAdjustUi();
+  lightboxResult = null;
   lightbox.classList.remove('open');
-});
-lightbox.addEventListener('click', (e)=>{
-  if (e.target===lightbox){ adjustCtx = null; lightbox.classList.remove('open'); }
-});
+}
+function closeLightbox(){
+  const steps = adjustCtx ? 2 : 1;              // the adjust editor has its own history entry too
+  closeLightboxUi();
+  popUiState(steps);
+}
+$('lightboxClose').addEventListener('click', closeLightbox);
+lightbox.addEventListener('click', (e) => { if (e.target === lightbox) closeLightbox(); });
 
-// ---------- adjust editor: Move (drag/pinch) and Erase (brush) tools ----------
-function loadCutoutOntoCanvas(url){
-  return new Promise((resolve, reject)=>{
-    const img = new Image();
-    img.onload = () => {
-      adjustFg.width = img.naturalWidth;
-      adjustFg.height = img.naturalHeight;
-      adjustFgCtx.clearRect(0, 0, adjustFg.width, adjustFg.height);
-      adjustFgCtx.drawImage(img, 0, 0);
-      resolve();
-    };
-    img.onerror = reject;
-    img.src = url;
-  });
+// ===================================================================================
+//  Adjust editor: Move (drag/pinch), Erase (brush), Enhance (tone sliders)
+// ===================================================================================
+async function loadCutoutOntoCanvas(url, ctx){
+  const img = await loadImage(url);
+  try {
+    if (ctx && adjustCtx !== ctx) return;           // the editor was closed while this was loading
+    adjustFg.width = img.width;
+    adjustFg.height = img.height;
+    adjustFgCtx.clearRect(0, 0, adjustFg.width, adjustFg.height);
+    adjustFgCtx.drawImage(img, 0, 0);
+  } finally { img.close(); }
 }
 
 function enterAdjust(r){
@@ -814,30 +1354,33 @@ function enterAdjust(r){
     result: r,
     transform: { ...r.transform },
     tool: 'move',
+    dirty: false,
+    ready: false,            // true once the cut-out has been loaded into the editing canvas
     brushRadiusFrac: 0.06,
     eraseHistory: [],
-    enhanceBase: null,
+    enhanceBase: null, enhanceOut: null, enhanceBlur: {},
     enhanceValues: { brightness: 0, contrast: 0, clarity: 0, sharpness: 0, temperature: 0 },
     fgNaturalW: r.fgW, fgNaturalH: r.fgH,
     bgNaturalW: 0, bgNaturalH: 0
   };
 
-  // Make the stage visible/laid out BEFORE computing the preview, so clientWidth is
-  // correct whether the background image loads fresh or is already cached (see below).
+  // Make the stage visible/laid out BEFORE computing the preview, so clientWidth is correct.
   lightboxImg.style.display = 'none';
   lightboxNormalRow.style.display = 'none';
   adjustStage.style.display = 'block';
   adjustControls.style.display = 'block';
   setAdjustTool('move');
+  pushUiState();
 
+  const ctx = adjustCtx;
   const initFromBg = () => {
-    adjustCtx.bgNaturalW = adjustBg.naturalWidth;
-    adjustCtx.bgNaturalH = adjustBg.naturalHeight;
+    if (adjustCtx !== ctx) return;
+    ctx.bgNaturalW = adjustBg.naturalWidth;
+    ctx.bgNaturalH = adjustBg.naturalHeight;
     adjustStage.style.aspectRatio = `${adjustBg.naturalWidth} / ${adjustBg.naturalHeight}`;
     updateAdjustPreview();
   };
-  // The `load` event won't refire if this exact src is already loaded (e.g. re-opening
-  // the editor on the same photo), so check the already-loaded case explicitly.
+  // The `load` event won't refire if this exact src is already loaded (re-opening the editor), so check explicitly.
   if (adjustBg.src === bg.dataUrl && adjustBg.complete && adjustBg.naturalWidth){
     initFromBg();
   } else {
@@ -845,21 +1388,37 @@ function enterAdjust(r){
     adjustBg.src = bg.dataUrl;
   }
 
-  // Always reload the working canvas fresh from the photo's currently-saved cutout.
-  loadCutoutOntoCanvas(r.cutoutUrl).then(updateAdjustPreview);
+  // Always start from the photo's currently-saved cut-out.
+  loadCutoutOntoCanvas(r.cutoutUrl, ctx)
+    .then(() => { if (adjustCtx === ctx){ ctx.ready = true; updateAdjustPreview(); } })
+    .catch(() => { if (adjustCtx === ctx) showToast('Could not open the editor'); });
 }
 
-function exitAdjust(){
+function exitAdjustUi(){
   adjustStage.style.display = 'none';
   adjustControls.style.display = 'none';
   lightboxImg.style.display = 'block';
   lightboxNormalRow.style.display = 'flex';
   eraseLastPoint = null;
   adjustCtx = null;
+  adjustFg.width = 1; adjustFg.height = 1;       // release the full-size editing canvas
+}
+function exitAdjust(){
+  exitAdjustUi();
+  popUiState();
+}
+
+function releaseEnhanceMemory(){
+  if (!adjustCtx) return;
+  adjustCtx.enhanceBase = null;
+  adjustCtx.enhanceOut = null;
+  adjustCtx.enhanceBlur = {};
 }
 
 function setAdjustTool(tool){
   if (!adjustCtx) return;
+  if (tool !== 'move' && !adjustCtx.ready) return;   // the photo is still loading into the editor
+  if (adjustCtx.tool === 'enhance' && tool !== 'enhance'){ flushEnhancePreview(); releaseEnhanceMemory(); }
   adjustCtx.tool = tool;
   eraseLastPoint = null;
   $('toolMove').classList.toggle('active', tool === 'move');
@@ -871,111 +1430,96 @@ function setAdjustTool(tool){
   adjustFg.style.cursor = tool === 'erase' ? 'crosshair' : 'grab';
 
   if (tool === 'enhance'){
-    // Sliders always adjust from "how the photo looks right now" -- capture that as the
-    // baseline each time you enter this tab, so moving/erasing first then enhancing works
-    // as expected, and switching tools locks in whatever's currently previewed.
+    // Sliders adjust from "how the photo looks right now": capture that as the baseline each time
+    // this tab opens, so moving/erasing first and then enhancing works, and switching tools locks
+    // in whatever is currently previewed.
     adjustCtx.enhanceBase = adjustFgCtx.getImageData(0, 0, adjustFg.width, adjustFg.height);
+    adjustCtx.enhanceOut = null;
+    adjustCtx.enhanceBlur = {};
     resetEnhanceSliders();
   }
 }
-$('toolMove').addEventListener('click', ()=> setAdjustTool('move'));
-$('toolErase').addEventListener('click', ()=> setAdjustTool('erase'));
-$('toolEnhance').addEventListener('click', ()=> setAdjustTool('enhance'));
+$('toolMove').addEventListener('click', () => setAdjustTool('move'));
+$('toolErase').addEventListener('click', () => setAdjustTool('erase'));
+$('toolEnhance').addEventListener('click', () => setAdjustTool('enhance'));
 
-document.querySelectorAll('.brush-btn[data-size]').forEach(btn=>{
-  btn.addEventListener('click', ()=>{
-    document.querySelectorAll('.brush-btn[data-size]').forEach(b=>b.classList.remove('active'));
+document.querySelectorAll('.brush-btn[data-size]').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.brush-btn[data-size]').forEach((b) => b.classList.remove('active'));
     btn.classList.add('active');
     const map = { small: 0.03, medium: 0.06, large: 0.10 };
     if (adjustCtx) adjustCtx.brushRadiusFrac = map[btn.dataset.size];
   });
 });
 
-// ---- enhance: brightness/contrast/clarity/sharpness/temperature, applied to the
-// cutout's RGB only (alpha, i.e. the erased/transparent parts, is left untouched) ----
+// ---- enhance: brightness / contrast / clarity / sharpness / temperature --------------
+// Applied to the cut-out's colour only (transparency, i.e. erased parts, is left untouched).
+// Sharpness and Clarity are "unsharp masks": the original minus a blurred copy. Because blurring
+// commutes with brightness/contrast/temperature, the blurred copies are computed once (lazily) and
+// every slider move is just one cheap pass over the pixels.
 function resetEnhanceSliders(){
   if (!adjustCtx) return;
   adjustCtx.enhanceValues = { brightness: 0, contrast: 0, clarity: 0, sharpness: 0, temperature: 0 };
-  ENHANCE_KEYS.forEach(name=>{
+  ENHANCE_KEYS.forEach((name) => {
     $('slider' + name).value = 0;
     $('val' + name).textContent = '0';
   });
 }
 
-function blurImageData(imageData, radiusPx){
-  const w = imageData.width, h = imageData.height;
-  const srcCanvas = document.createElement('canvas');
-  srcCanvas.width = w; srcCanvas.height = h;
-  srcCanvas.getContext('2d').putImageData(imageData, 0, 0);
-
-  const outCanvas = document.createElement('canvas');
-  outCanvas.width = w; outCanvas.height = h;
-  const outCtx = outCanvas.getContext('2d');
-  outCtx.filter = `blur(${radiusPx}px)`;
-  outCtx.drawImage(srcCanvas, 0, 0);
-  return outCtx.getImageData(0, 0, w, h);
+function enhanceBlur(kind){
+  const c = adjustCtx;
+  if (!c.enhanceBlur[kind]) c.enhanceBlur[kind] = blurImageData(c.enhanceBase, kind === 'fine' ? 1.5 : 18).data;
+  return c.enhanceBlur[kind];
 }
 
-function combineUnsharp(baseData, blurredData, amount){
-  const out = new ImageData(new Uint8ClampedArray(baseData.data), baseData.width, baseData.height);
-  const a = baseData.data, b = blurredData.data, o = out.data;
-  for (let i = 0; i < a.length; i += 4){
-    o[i]   = a[i]   + amount * (a[i]   - b[i]);
-    o[i+1] = a[i+1] + amount * (a[i+1] - b[i+1]);
-    o[i+2] = a[i+2] + amount * (a[i+2] - b[i+2]);
-    o[i+3] = a[i+3];
-  }
-  return out;
-}
-
-function computeEnhanced(base, values){
-  const { brightness, contrast, clarity, sharpness, temperature } = values;
-  const c = contrast * 2.55; // -100..100 -> classic -255..255 contrast formula
-  const contrastFactor = (259 * (c + 255)) / (255 * (259 - c));
+function renderEnhanced(){
+  const c = adjustCtx;
+  if (!c || !c.enhanceBase) return;
+  const { brightness, contrast, clarity, sharpness, temperature } = c.enhanceValues;
+  const a = Math.pow(2, contrast / 40);              // contrast factor: 0.18x .. 5.7x, gentle near 0
   const brightAdd = brightness * 1.5;
-  const tempShift = temperature * 1.0;
+  const sA = (sharpness / 100) * 1.2 * a;
+  const cA = (clarity / 100) * 0.8 * a;
+  const bf = sharpness > 0 ? enhanceBlur('fine') : null;
+  const bw = clarity !== 0 ? enhanceBlur('wide') : null;
 
-  const toned = new ImageData(new Uint8ClampedArray(base.data), base.width, base.height);
-  const src = base.data, dst = toned.data;
-  for (let i = 0; i < src.length; i += 4){
-    let r = src[i] + brightAdd;
-    let g = src[i+1] + brightAdd;
-    let b = src[i+2] + brightAdd;
-    r = contrastFactor * (r - 128) + 128;
-    g = contrastFactor * (g - 128) + 128;
-    b = contrastFactor * (b - 128) + 128;
-    dst[i]   = r + tempShift;
-    dst[i+1] = g;
-    dst[i+2] = b - tempShift;
-    dst[i+3] = src[i+3];
+  if (!c.enhanceOut) c.enhanceOut = new ImageData(c.enhanceBase.width, c.enhanceBase.height);
+  const src = c.enhanceBase.data, out = c.enhanceOut.data;
+  for (let i = 0, len = src.length; i < len; i += 4){
+    const r = src[i], g = src[i + 1], b = src[i + 2];
+    let dr = 0, dg = 0, db = 0;
+    if (bf){ dr += sA * (r - bf[i]); dg += sA * (g - bf[i + 1]); db += sA * (b - bf[i + 2]); }
+    if (bw){ dr += cA * (r - bw[i]); dg += cA * (g - bw[i + 1]); db += cA * (b - bw[i + 2]); }
+    out[i]     = a * (r + brightAdd - 128) + 128 + temperature + dr;
+    out[i + 1] = a * (g + brightAdd - 128) + 128 + dg;
+    out[i + 2] = a * (b + brightAdd - 128) + 128 - temperature + db;
+    out[i + 3] = src[i + 3];
   }
-
-  let result = toned;
-  if (sharpness > 0){
-    const blurredFine = blurImageData(toned, 1.5);
-    result = combineUnsharp(result, blurredFine, (sharpness / 100) * 1.2);
-  }
-  if (clarity !== 0){
-    const blurredWide = blurImageData(toned, 18);
-    result = combineUnsharp(result, blurredWide, (clarity / 100) * 0.8);
-  }
-  return result;
+  adjustFgCtx.putImageData(c.enhanceOut, 0, 0);
+  c.dirty = true;
 }
 
-let enhanceRaf = null;
+// Slider moves are batched to one redraw per animation frame; flushEnhancePreview() draws any pending one
+// immediately (used before the editor reads the pixels, so the very last slider move is never lost).
+let enhanceFramePending = false;
 function scheduleEnhancePreview(){
-  if (enhanceRaf) return;
-  enhanceRaf = requestAnimationFrame(()=>{
-    enhanceRaf = null;
-    if (!adjustCtx || !adjustCtx.enhanceBase) return;
-    const result = computeEnhanced(adjustCtx.enhanceBase, adjustCtx.enhanceValues);
-    adjustFgCtx.putImageData(result, 0, 0);
+  if (enhanceFramePending) return;
+  enhanceFramePending = true;
+  requestAnimationFrame(() => {
+    if (!enhanceFramePending) return;
+    enhanceFramePending = false;
+    renderEnhanced();
   });
 }
+function flushEnhancePreview(){
+  if (!enhanceFramePending) return;
+  enhanceFramePending = false;
+  renderEnhanced();
+}
 
-ENHANCE_KEYS.forEach(name=>{
+ENHANCE_KEYS.forEach((name) => {
   const key = name.toLowerCase();
-  $('slider' + name).addEventListener('input', (e)=>{
+  $('slider' + name).addEventListener('input', (e) => {
     if (!adjustCtx) return;
     const v = parseInt(e.target.value, 10);
     adjustCtx.enhanceValues[key] = v;
@@ -994,13 +1538,13 @@ function updateAdjustPreview(){
   adjustFg.style.height = (rect.h * displayScale) + 'px';
 }
 
-// ---- erase brush: paints directly on the working canvas (destination-out) ----
+// ---- erase brush: paints directly on the working canvas (destination-out) ----------
 let eraseLastPoint = null;
 
 function saveEraseSnapshot(){
   const snap = adjustFgCtx.getImageData(0, 0, adjustFg.width, adjustFg.height);
   adjustCtx.eraseHistory.push(snap);
-  if (adjustCtx.eraseHistory.length > 12) adjustCtx.eraseHistory.shift();
+  if (adjustCtx.eraseHistory.length > UNDO_STEPS) adjustCtx.eraseHistory.shift();
 }
 
 function paintErase(clientX, clientY){
@@ -1027,21 +1571,23 @@ function paintErase(clientX, clientY){
   adjustFgCtx.restore();
 
   eraseLastPoint = { x: px, y: py };
+  adjustCtx.dirty = true;
 }
 
-$('eraseUndo').addEventListener('click', ()=>{
+$('eraseUndo').addEventListener('click', () => {
   if (!adjustCtx || !adjustCtx.eraseHistory.length) return;
   const snap = adjustCtx.eraseHistory.pop();
   adjustFgCtx.putImageData(snap, 0, 0);
+  adjustCtx.dirty = true;
 });
 
-// ---- move/pinch (only active in the Move tool) ----
+// ---- move/pinch (only active in the Move tool) -----------------------------------------
 const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 const activePointers = new Map();
 let dragStart = null;
 let pinchStart = null;
 
-adjustFg.addEventListener('pointerdown', (e)=>{
+adjustFg.addEventListener('pointerdown', (e) => {
   if (!adjustCtx || adjustCtx.tool === 'enhance') return;
   try { adjustFg.setPointerCapture(e.pointerId); } catch {}
   activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
@@ -1062,7 +1608,7 @@ adjustFg.addEventListener('pointerdown', (e)=>{
   }
 });
 
-adjustFg.addEventListener('pointermove', (e)=>{
+adjustFg.addEventListener('pointermove', (e) => {
   if (!adjustCtx || !activePointers.has(e.pointerId)) return;
   activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
 
@@ -1099,43 +1645,114 @@ function endPointer(e){
 adjustFg.addEventListener('pointerup', endPointer);
 adjustFg.addEventListener('pointercancel', endPointer);
 
-$('adjustReset').addEventListener('click', async ()=>{
+$('adjustReset').addEventListener('click', async () => {
   if (!adjustCtx) return;
-  adjustCtx.transform = { scale: 1, dx: 0, dy: 0 };
-  adjustCtx.eraseHistory = [];
-  await loadCutoutOntoCanvas(adjustCtx.result.cutoutUrl);
+  enhanceFramePending = false;                      // drop any slider redraw that was about to happen
+  const ctx = adjustCtx;
+  ctx.transform = { scale: 1, dx: 0, dy: 0 };
+  ctx.eraseHistory = [];
+  ctx.dirty = false;
+  await loadCutoutOntoCanvas(ctx.result.cutoutUrl, ctx);
+  if (adjustCtx !== ctx) return;
   updateAdjustPreview();
-  if (adjustCtx.tool === 'enhance'){
-    adjustCtx.enhanceBase = adjustFgCtx.getImageData(0, 0, adjustFg.width, adjustFg.height);
+  if (ctx.tool === 'enhance'){
+    ctx.enhanceBase = adjustFgCtx.getImageData(0, 0, adjustFg.width, adjustFg.height);
+    ctx.enhanceOut = null;
+    ctx.enhanceBlur = {};
   }
   resetEnhanceSliders();
 });
 
-$('adjustCancel').addEventListener('click', ()=> exitAdjust());
+$('adjustCancel').addEventListener('click', exitAdjust);
 
-$('adjustDone').addEventListener('click', async ()=>{
+$('adjustDone').addEventListener('click', async () => {
   if (!adjustCtx) return;
-  const r = adjustCtx.result;
-  const bg = backgrounds[r.bgIndexUsed];
-  r.transform = { ...adjustCtx.transform };
-  const newCutoutBlob = await new Promise(resolve => adjustFg.toBlob(resolve, 'image/png'));
-  r.cutoutUrl = URL.createObjectURL(newCutoutBlob);
-  r.composedUrl = await composite(r.cutoutUrl, bg.dataUrl, r.transform);
-  lightboxImg.src = r.composedUrl;
-  exitAdjust();
-  renderResults();
+  flushEnhancePreview();
+  const c = adjustCtx;
+  const r = c.result;
+  const t0 = r.transform, t1 = c.transform;
+  const moved = t0.scale !== t1.scale || t0.dx !== t1.dx || t0.dy !== t1.dy;
+  if (!moved && !c.dirty){ exitAdjust(); return; }   // nothing changed: keep the photo (and its "saved" tick) as is
+
+  const doneBtn = $('adjustDone');
+  doneBtn.disabled = true;
+  try {
+    const transform = { ...t1 };
+    // If pixels changed (erase/enhance), store the edited cut-out; otherwise the existing one is reused.
+    let cutoutBlob = r.cutoutBlob, cutoutUrl = r.cutoutUrl;
+    if (c.dirty){
+      cutoutBlob = await canvasToBlob(adjustFg, 'image/png');
+      cutoutUrl = URL.createObjectURL(cutoutBlob);
+    }
+    const comp = await composite(c.dirty ? adjustFg : cutoutUrl, r.bgIndexUsed, transform);
+    if (c.dirty) revoke(r.cutoutUrl);
+    revoke(r.composedUrl);
+    r.cutoutBlob = cutoutBlob; r.cutoutUrl = cutoutUrl;
+    r.composedUrl = comp.url; r.thumbUrl = comp.thumbUrl;
+    r.transform = transform;
+    r.saved = false; r.shared = false;               // the picture changed, so any earlier save is out of date
+    if (c.dirty) persistResult(r); else persistMeta(r);
+    lightboxImg.src = r.composedUrl;
+    exitAdjust();
+    renderResults();
+    refreshLightboxButtons();
+  } catch (err){
+    console.error(err);
+    showToast('Could not apply your changes — try again');
+  } finally { doneBtn.disabled = false; }
 });
 
-// ---------- init ----------
+// ===================================================================================
+//  About line (version / speed / offline status)
+// ===================================================================================
+function describeSpeed(){
+  if (engine.workerBroken) return 'basic mode';
+  if (window.crossOriginIsolated){
+    const t = engine.wantedThreads();
+    return t > 1 ? `multi-core (${t} threads)` : 'single-core (multi-core didn’t work on this device)';
+  }
+  return 'standard — close and reopen the app once to unlock multi-core';
+}
+async function refreshAboutLine(){
+  const saved = await engineIsSaved();
+  $('aboutLine').textContent =
+    `BG Swap ${APP_VERSION} · Speed: ${describeSpeed()} · AI engine: ` +
+    (saved ? 'saved on this phone (works offline)' : 'not downloaded yet (downloads once on your first photo, ~190 MB)');
+}
+
+// ===================================================================================
+//  Start-up
+// ===================================================================================
+const COI_FLAG = 'bgswap_coi_reload';
+function maybeReloadForIsolation(){
+  // Multi-core needs the page to be "cross-origin isolated", which the service worker provides on the
+  // *next* load. Reload once automatically, but only when there's nothing on screen to lose.
+  if (window.crossOriginIsolated || !('credentialless' in HTMLIFrameElement.prototype)) return;
+  if (!navigator.serviceWorker || !navigator.serviceWorker.controller) return;
+  if (pendingPhotos.length || results.length || processing) return;
+  try {
+    if (sessionStorage.getItem(COI_FLAG)) return;   // already tried once this session: never loop
+    sessionStorage.setItem(COI_FLAG, '1');
+  } catch { return; }
+  location.reload();
+}
+
+async function initServiceWorker(){
+  if (!('serviceWorker' in navigator)) return;
+  navigator.serviceWorker.addEventListener('controllerchange', maybeReloadForIsolation);
+  try { await navigator.serviceWorker.register('sw.js'); } catch { return; }
+  maybeReloadForIsolation();
+  try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch {}
+}
+
 renderBgPanel();
 renderBgPicker();
 renderThumbs();
 renderResults();
 if (!backgrounds[0] && !backgrounds[1]) bgPanel.classList.add('open');
-
-if ('serviceWorker' in navigator){
-  window.addEventListener('load', ()=> navigator.serviceWorker.register('sw.js').catch(()=>{}));
-}
+refreshAboutLine();
+restoreSession();
+window.addEventListener('load', initServiceWorker);
 </script>
 </body>
 </html>
